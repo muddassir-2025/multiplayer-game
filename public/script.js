@@ -210,19 +210,6 @@ function update() {
             badGuy.destroy();
         }
     });
-}uy.body.touching.down) {
-            
-            // Random chance to jump so they don't all jump at the exact same time
-            if (Phaser.Math.Between(0, 100) > 98) { 
-                badGuy.setVelocityY(-400); // The Jump height
-            }
-        }
-
-        // Cleanup if off-screen
-        if (badGuy.x < this.cameras.main.scrollX - 100) {
-            badGuy.destroy();
-        }
-    });
 }
 
 function spawnBrick() {
