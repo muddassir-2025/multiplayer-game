@@ -44,21 +44,41 @@ function preload() {
 }
 
 function create() {
-    this.socket = io(); // --- This is the connection line ---
+    this.socket = io();
+
+    // Group to hold all other players
+    this.otherPlayers = this.physics.add.group();
 
     // --- Listen for events from the server ---
-    // Example: Listen for other players moving
-    this.socket.on('playerMoved', (playerData) => {
-        // Find the sprite for this player and update its position
-        console.log(`Player ${playerData.id} moved.`);
+    this.socket.on('currentPlayers', (players) => {
+        Object.keys(players).forEach((id) => {
+            if (players[id].playerId === this.socket.id) {
+                // This is the current player, do nothing
+            } else {
+                addOtherPlayer.call(this, players[id]);
+            }
+        });
     });
 
-    // Example: Listen for a player disconnecting
+    this.socket.on('newPlayer', (playerInfo) => {
+        addOtherPlayer.call(this, playerInfo);
+    });
+
     this.socket.on('playerDisconnected', (playerId) => {
-        // Find and remove the sprite for this player
-        console.log(`Player ${playerId} disconnected.`);
+        this.otherPlayers.getChildren().forEach((otherPlayer) => {
+            if (playerId === otherPlayer.playerId) {
+                otherPlayer.destroy();
+            }
+        });
     });
-
+    
+    this.socket.on('playerMoved', (playerInfo) => {
+        this.otherPlayers.getChildren().forEach((otherPlayer) => {
+            if (playerInfo.playerId === otherPlayer.playerId) {
+                otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+            }
+        });
+    });
 
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
 
@@ -87,9 +107,11 @@ function create() {
     this.physics.add.collider(player, enemy, hitspike, null, this);
     this.physics.add.collider(player, bricks);
     this.physics.add.overlap(player, items, collectItem, null, this);
-    // Add these so enemies don't fall through bricks or the floor
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
+    this.physics.add.collider(this.otherPlayers, ground);
+    this.physics.add.collider(this.otherPlayers, bricks);
+
 
     // Bullet destruction logic
     this.physics.add.collider(bulletGroup, enemy, (bullet, enmy) => {
@@ -114,7 +136,13 @@ function create() {
 }
 
 function update() {
-    if (this.physics.world.isPaused) return;
+    if (this.physics.world.isPaused || !player) return;
+
+    // --- Emit player movement ---
+    var oldPosition = {
+        x: player.x,
+        y: player.y
+    };
 
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.3;
     ground.x = this.cameras.main.scrollX + 400;
@@ -151,6 +179,18 @@ function update() {
         fireBullet.call(this);
     }
 
+    // --- Emit player movement ---
+    if (player.oldPosition && (player.x !== player.oldPosition.x || player.y !== player.oldPosition.y)) {
+        this.socket.emit('playerMovement', { x: player.x, y: player.y });
+    }
+     
+    // save old position data
+    player.oldPosition = {
+        x: player.x,
+        y: player.y,
+    };
+
+
     // Cleanup & UI
     cleanupObjects.call(this);
     score = Math.floor(player.x / 100);
@@ -161,8 +201,16 @@ function update() {
 
     // --- ENEMY JUMPING LOGIC ---
     enemy.getChildren().forEach(badGuy => {
-        // Check if the enemy is touching something below it
         if (badGuy.isJumper && badGuy.body.touching.down) {
+            if (Phaser.Math.Between(0, 100) > 98) { 
+                badGuy.setVelocityY(-400);
+            }
+        }
+        if (badGuy.x < this.cameras.main.scrollX - 100) {
+            badGuy.destroy();
+        }
+    });
+}uy.body.touching.down) {
             
             // Random chance to jump so they don't all jump at the exact same time
             if (Phaser.Math.Between(0, 100) > 98) { 
@@ -253,4 +301,10 @@ function cleanupObjects() {
             if (child.x < this.cameras.main.scrollX - 100) child.destroy();
         });
     });
+}
+function addOtherPlayer(playerInfo) {
+    const otherPlayer = this.physics.add.image(playerInfo.x, playerInfo.y, 'box');
+    otherPlayer.setTint(0x0000ff);
+    otherPlayer.playerId = playerInfo.playerId;
+    this.otherPlayers.add(otherPlayer);
 }

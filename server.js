@@ -17,20 +17,41 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
+const players = {};
+
 // --- Socket.IO Game Logic ---
 io.on('connection', (socket) => {
   console.log(`A user connected: ${socket.id}`);
 
-  // Example: Listen for a player moving
+  // Create a new player and add it to the players object
+  players[socket.id] = {
+    x: Math.floor(Math.random() * 700) + 50,
+    y: 450,
+    playerId: socket.id,
+  };
+  
+  // Send the players object to the new player
+  socket.emit('currentPlayers', players);
+  
+  // Update all other players of the new player
+  socket.broadcast.emit('newPlayer', players[socket.id]);
+
+  // Listen for player movement
   socket.on('playerMovement', (movementData) => {
-    // Broadcast the movement to all other players
-    socket.broadcast.emit('playerMoved', { id: socket.id, ...movementData });
+    if (players[socket.id]) {
+      players[socket.id].x = movementData.x;
+      players[socket.id].y = movementData.y;
+      // Broadcast the movement to all other players
+      socket.broadcast.emit('playerMoved', players[socket.id]);
+    }
   });
 
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    // Emit an event to all other clients that this player has disconnected
+    // Remove this player from our players object
+    delete players[socket.id];
+    // Emit a message to all other players to remove this player
     io.emit('playerDisconnected', socket.id);
   });
 });
