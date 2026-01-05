@@ -9,13 +9,12 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
 // --- Static File Serving ---
-// This is the key change: Serve all files from the project's root directory.
-// __dirname is the directory where this server.js script is located.
-app.use(express.static(__dirname));
+// This is the key change: Serve all files from the project's 'public' directory.
+app.use(express.static(__dirname + '/public'));
 
 // Serve index.html as the main page
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+  res.sendFile(__dirname + '/public/index.html');
 });
 
 // --- Socket.IO Game Logic ---
