@@ -1,0 +1,13 @@
+{
+  "name": "phaser-multiplayer-box",
+  "version": "1.0.0",
+  "description": "A multiplayer runner game using Phaser 3",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}
