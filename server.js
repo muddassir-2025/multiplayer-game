@@ -1,56 +1,42 @@
 const express = require('express');
 const app = express();
-const server = require('http').Server(app);
-const io = require('socket.io')(server);
-const path = require('path');
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
 
-const PORT = process.env.PORT || 8081;
+// The port Render will use, with a fallback for local development
+const PORT = process.env.PORT || 3000;
 
-// Serve the 'public' folder where your HTML/JS files live
-app.use(express.static(path.join(__dirname, 'public')));
+// --- Static File Serving ---
+// This is the key change: Serve all files from the project's root directory.
+// __dirname is the directory where this server.js script is located.
+app.use(express.static(__dirname));
 
-let players = {};
-
-io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
-
-    // Initial state for new player
-    players[socket.id] = {
-        x: 100,
-        y: 450,
-        playerId: socket.id,
-        health: 100,
-        score: 0
-    };
-
-    // Send current players list to the NEW connection
-    socket.emit('currentPlayers', players);
-
-    // Tell OTHERS a new player joined
-    socket.broadcast.emit('newPlayer', players[socket.id]);
-
-    // Handle movement synchronization
-    socket.on('playerMovement', (movementData) => {
-        if (players[socket.id]) {
-            players[socket.id].x = movementData.x;
-            players[socket.id].y = movementData.y;
-            socket.broadcast.emit('playerMoved', players[socket.id]);
-        }
-    });
-
-    // Handle shooting events
-    socket.on('shoot', (bulletData) => {
-        socket.broadcast.emit('enemyShot', bulletData);
-    });
-
-    // Handle disconnects
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-        delete players[socket.id];
-        io.emit('disconnectPlayer', socket.id);
-    });
+// Serve index.html as the main page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
 });
 
+// --- Socket.IO Game Logic ---
+io.on('connection', (socket) => {
+  console.log(`A user connected: ${socket.id}`);
+
+  // Example: Listen for a player moving
+  socket.on('playerMovement', (movementData) => {
+    // Broadcast the movement to all other players
+    socket.broadcast.emit('playerMoved', { id: socket.id, ...movementData });
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+    // Emit an event to all other clients that this player has disconnected
+    io.emit('playerDisconnected', socket.id);
+  });
+});
+
+// --- Start Server ---
 server.listen(PORT, () => {
-    console.log(`Game server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });

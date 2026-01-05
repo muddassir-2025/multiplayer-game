@@ -44,6 +44,22 @@ function preload() {
 }
 
 function create() {
+    this.socket = io(); // --- This is the connection line ---
+
+    // --- Listen for events from the server ---
+    // Example: Listen for other players moving
+    this.socket.on('playerMoved', (playerData) => {
+        // Find the sprite for this player and update its position
+        console.log(`Player ${playerData.id} moved.`);
+    });
+
+    // Example: Listen for a player disconnecting
+    this.socket.on('playerDisconnected', (playerId) => {
+        // Find and remove the sprite for this player
+        console.log(`Player ${playerId} disconnected.`);
+    });
+
+
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
 
     cursors = this.input.keyboard.createCursorKeys();
