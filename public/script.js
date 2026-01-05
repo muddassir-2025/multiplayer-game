@@ -48,12 +48,18 @@ function create() {
 
     // Group to hold all other players
     this.otherPlayers = this.physics.add.group();
+    // Group to hold bullets from other players
+    this.networkBullets = this.physics.add.group({
+        defaultKey: 'bullet',
+        maxSize: 30
+    });
 
     // --- Listen for events from the server ---
     this.socket.on('currentPlayers', (players) => {
         Object.keys(players).forEach((id) => {
             if (players[id].playerId === this.socket.id) {
-                // This is the current player, do nothing
+                // This is the current player, assign their health
+                health = players[id].health;
             } else {
                 addOtherPlayer.call(this, players[id]);
             }
@@ -79,6 +85,39 @@ function create() {
             }
         });
     });
+
+    this.socket.on('bulletFired', (bulletData) => {
+        const bullet = this.networkBullets.create(bulletData.x, bulletData.y, 'bullet');
+        if (bullet) {
+            bullet.body.allowGravity = false;
+            bullet.setVelocityX(bulletData.velocityX);
+            bullet.ownerId = bulletData.ownerId; // Keep track of who shot the bullet
+            this.time.delayedCall(2000, () => { if (bullet.active) bullet.destroy(); });
+        }
+    });
+
+    this.socket.on('playerWasHit', (hitInfo) => {
+        if (hitInfo.playerId === this.socket.id) {
+            // This client was hit
+            health = hitInfo.health;
+            player.setTint(0xff0000);
+            this.time.delayedCall(200, () => player.clearTint());
+            if (health <= 0) {
+                this.physics.pause();
+                window.alert("You have been eliminated!");
+            }
+        } else {
+            // Another player was hit
+            this.otherPlayers.getChildren().forEach((otherPlayer) => {
+                if (hitInfo.playerId === otherPlayer.playerId) {
+                    // Optional: tint the other player to show they were hit
+                    otherPlayer.setTint(0xff0000);
+                    this.time.delayedCall(200, () => otherPlayer.clearTint());
+                }
+            });
+        }
+    });
+
 
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
 
@@ -111,6 +150,15 @@ function create() {
     this.physics.add.collider(enemy, bricks);
     this.physics.add.collider(this.otherPlayers, ground);
     this.physics.add.collider(this.otherPlayers, bricks);
+    
+    // Add collision for local player and network bullets
+    this.physics.add.overlap(player, this.networkBullets, (player, bullet) => {
+        // We don't want to get hit by our own bullet if there's lag
+        if (bullet.ownerId !== this.socket.id) {
+            this.socket.emit('playerHit', { playerId: this.socket.id });
+            bullet.destroy(); // Destroy bullet on impact
+        }
+    }, null, this);
 
 
     // Bullet destruction logic
@@ -254,11 +302,23 @@ function hitspike(player, spike) {
 }
 
 function fireBullet() {
-    bullets--;
-    let bullet = bulletGroup.create(player.x + 20, player.y, 'bullet');
-    bullet.body.allowGravity = false;
-    bullet.setVelocityX(600);
-    this.time.delayedCall(2000, () => { if (bullet.active) bullet.destroy(); });
+    if (bullets > 0) {
+        bullets--;
+        const bullet = bulletGroup.create(player.x + 20, player.y, 'bullet');
+        if (bullet) {
+            bullet.body.allowGravity = false;
+            bullet.setVelocityX(600);
+            this.time.delayedCall(2000, () => { if (bullet.active) bullet.destroy(); });
+
+            // Emit an event to the server
+            this.socket.emit('playerShoots', { 
+                x: bullet.x, 
+                y: bullet.y, 
+                velocityX: 600,
+                ownerId: this.socket.id 
+            });
+        }
+    }
 }
 
 function collectItem(player, item) {

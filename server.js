@@ -28,6 +28,7 @@ io.on('connection', (socket) => {
     x: Math.floor(Math.random() * 700) + 50,
     y: 450,
     playerId: socket.id,
+    health: 100, // Add health property
   };
   
   // Send the players object to the new player
@@ -43,6 +44,27 @@ io.on('connection', (socket) => {
       players[socket.id].y = movementData.y;
       // Broadcast the movement to all other players
       socket.broadcast.emit('playerMoved', players[socket.id]);
+    }
+  });
+
+  // Listen for shooting event
+  socket.on('playerShoots', (bulletData) => {
+    socket.broadcast.emit('bulletFired', bulletData);
+  });
+
+  // Listen for when a player is hit
+  socket.on('playerHit', (hitData) => {
+    if (players[hitData.playerId]) {
+      players[hitData.playerId].health -= 10;
+      if (players[hitData.playerId].health <= 0) {
+        // Handle player death if necessary
+        console.log(`${hitData.playerId} has been eliminated.`);
+      }
+      // Broadcast the hit and updated health to all clients
+      io.emit('playerWasHit', { 
+        playerId: hitData.playerId, 
+        health: players[hitData.playerId].health 
+      });
     }
   });
 
