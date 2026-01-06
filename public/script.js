@@ -247,6 +247,10 @@ function update() {
             badGuy.setVelocityX(-100);
             badGuy.setTint(0xff0000); 
         }
+        else if (distance > 400) {
+            badGuy.setVelocityX(100);
+            badGuy.setTint(0xff0000); 
+        }
     });
 
     cleanupObjects.call(this);
@@ -347,7 +351,7 @@ function addOtherPlayer(playerInfo) {
  */
 function collectItem(player, item) {
     if (item.type === 'jetpack') flytime = Math.min(flytime + 200, 1000);
-    else if (item.type === 'gun') bullets += 10;
+    else if (item.type === 'gun') bullets = Math.min(bullets + 10, 30);
     else if (item.type === 'health') health = Math.min(health + 20, 100);
     item.destroy();
 }
