@@ -3,14 +3,15 @@
  */
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    scale: {
+        mode: Phaser.Scale.FIT, // Stretches to fit
+        autoCenter: Phaser.Scale.CENTER_BOTH, // Centers game on screen
+        width: 800,
+        height: 600
+    },
     physics: {
         default: 'arcade',
-        arcade: {
-            gravity: { y: 1000 },
-            debug: false
-        }
+        arcade: { gravity: { y: 1000 }, debug: false }
     },
     scene: { preload, create, update }
 };
@@ -192,6 +193,41 @@ function create() {
     // Initial Spawning
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
+
+    // --- MOBILE CONTROLS ---
+
+// Left half of screen = Fly/Jump
+this.jumpZone = this.add.zone(0, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+
+// Right half of screen = Shoot
+this.shootZone = this.add.zone(400, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+
+// Logic for Jump/Fly
+this.jumpZone.on('pointerdown', () => { this.isMobileJumping = true; });
+this.jumpZone.on('pointerup', () => { this.isMobileJumping = false; });
+
+// Logic for Shooting
+this.shootZone.on('pointerdown', () => { 
+    if (bullets > 0) fireBullet.call(this); 
+});
+
+// Update the Flying Logic
+if ((cursors.up.isDown || this.isMobileJumping) && flytime > 0) {
+    player.setVelocityY(-300);
+    flytime -= 2;
+    player.setAngle(-15);
+    this.cameras.main.zoomTo(0.7, 1000);
+} else {
+    this.cameras.main.zoomTo(1, 1000);
+    player.setAngle(0);
+}
+
+// Update the Jumping Logic
+if ((Phaser.Input.Keyboard.JustDown(spaceKey) || (this.isMobileJumping && player.body.touching.down)) && player.body.touching.down) {
+    player.setVelocityY(-500);
+    player.setAngularVelocity(300);
+}
+
 }
 
 /**
