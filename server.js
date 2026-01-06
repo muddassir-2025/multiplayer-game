@@ -11,9 +11,53 @@ const PORT = process.env.PORT || 3000;
 // --- Middleware & Static Routing ---
 // Serves images, scripts, and CSS from the /public folder
 app.use(express.static(__dirname + '/public'));
+app.use(express.json()); // For parsing application/json
 
+// Landing Page (default)
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
+});
+
+// Game Page
+app.get('/game', (req, res) => {
+  res.sendFile(__dirname + '/public/game.html');
+});
+
+// --- Leaderboard (In-Memory) ---
+// Mock data to start with
+let leaderboard = [
+    { name: 'SpeedDemon', score: 1500, date: '2023-10-27' },
+    { name: 'BoxMaster', score: 1200, date: '2023-10-26' },
+    { name: 'GlitchHunter', score: 950, date: '2023-10-25' },
+    { name: 'PixelKing', score: 800, date: '2023-10-24' },
+    { name: 'VoidWalker', score: 600, date: '2023-10-23' }
+];
+
+app.get('/api/leaderboard', (req, res) => {
+    // Sort by score descending
+    const sorted = leaderboard.sort((a, b) => b.score - a.score).slice(0, 10);
+    res.json(sorted);
+});
+
+app.post('/api/submit-score', (req, res) => {
+    const { name, score } = req.body;
+    if (!name || score === undefined) {
+        return res.status(400).json({ error: 'Name and score are required' });
+    }
+    
+    leaderboard.push({
+        name: name.substring(0, 15), // Limit name length
+        score: parseInt(score),
+        date: new Date().toISOString().split('T')[0]
+    });
+    
+    // Keep top 50 only to prevent memory leak over long time (though it's just in-memory)
+    if (leaderboard.length > 50) {
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, 50);
+    }
+    
+    res.json({ success: true, rank: leaderboard.length });
 });
 
 // Centralized store for all active player data

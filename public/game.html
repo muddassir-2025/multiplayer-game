@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Box Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Inter', sans-serif;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Toast Notification */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00f3ff;
+            color: #fff;
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #00f3ff;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Game Over Modal */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid #bc13fe;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(188, 19, 254, 0.4);
+            width: 90%;
+            max-width: 400px;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-family: sans-serif;
+            text-transform: uppercase;
+        }
+
+        .modal p {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-family: sans-serif;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #555;
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .modal input:focus {
+            border-color: #00f3ff;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+        }
+
+        .btn-submit {
+            background: linear-gradient(90deg, #bc13fe, #00f3ff);
+            border: none;
+            padding: 12px 30px;
+            color: white;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .btn-submit:hover {
+            transform: scale(1.05);
+        }
+
+        @media screen and (orientation:portrait) {
+            body::after {
+                content: "Please rotate your device to landscape!";
+                position: fixed;
+                inset: 0;
+                background: #000;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 3000;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toast-container"></div>
+
+    <div id="modal-overlay">
+        <div class="modal">
+            <h2>Game Over</h2>
+            <p>Enter your name to eternalize your score.</p>
+            <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="15">
+            <button class="btn-submit" id="submit-score-btn">SUBMIT SCORE</button>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

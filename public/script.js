@@ -137,8 +137,7 @@ function create() {
             this.time.delayedCall(200, () => player.clearTint());
             if (health <= 0) {
                 this.physics.pause();
-                window.alert("You have been eliminated!");
-                window.location.reload();
+                showGameOverModal(score);
             }
         }
     });
@@ -148,7 +147,7 @@ function create() {
     this.physics.add.collider(player, enemy, hitspike, null, this);
     this.physics.add.collider(player, bricks);
     this.physics.add.overlap(player, items, collectItem, null, this);
-    
+
     // Environmental collisions
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
@@ -165,7 +164,7 @@ function create() {
 
     // Bullet vs Enemy/Spikes
     this.physics.add.collider(bulletGroup, enemy, (bullet, enmy) => {
-        this.cameras.main.shake(100, 0.01); 
+        this.cameras.main.shake(100, 0.01);
         explode.call(this, enmy.x, enmy.y);
         bullet.destroy();
         enmy.destroy();
@@ -196,37 +195,37 @@ function create() {
 
     // --- MOBILE CONTROLS ---
 
-// Left half of screen = Fly/Jump
-this.jumpZone = this.add.zone(0, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+    // Left half of screen = Fly/Jump
+    this.jumpZone = this.add.zone(0, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
 
-// Right half of screen = Shoot
-this.shootZone = this.add.zone(400, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+    // Right half of screen = Shoot
+    this.shootZone = this.add.zone(400, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
 
-// Logic for Jump/Fly
-this.jumpZone.on('pointerdown', () => { this.isMobileJumping = true; });
-this.jumpZone.on('pointerup', () => { this.isMobileJumping = false; });
+    // Logic for Jump/Fly
+    this.jumpZone.on('pointerdown', () => { this.isMobileJumping = true; });
+    this.jumpZone.on('pointerup', () => { this.isMobileJumping = false; });
 
-// Logic for Shooting
-this.shootZone.on('pointerdown', () => { 
-    if (bullets > 0) fireBullet.call(this); 
-});
+    // Logic for Shooting
+    this.shootZone.on('pointerdown', () => {
+        if (bullets > 0) fireBullet.call(this);
+    });
 
-// Update the Flying Logic
-if ((cursors.up.isDown || this.isMobileJumping) && flytime > 0) {
-    player.setVelocityY(-300);
-    flytime -= 2;
-    player.setAngle(-15);
-    this.cameras.main.zoomTo(0.7, 1000);
-} else {
-    this.cameras.main.zoomTo(1, 1000);
-    player.setAngle(0);
-}
+    // Update the Flying Logic
+    if ((cursors.up.isDown || this.isMobileJumping) && flytime > 0) {
+        player.setVelocityY(-300);
+        flytime -= 2;
+        player.setAngle(-15);
+        this.cameras.main.zoomTo(0.7, 1000);
+    } else {
+        this.cameras.main.zoomTo(1, 1000);
+        player.setAngle(0);
+    }
 
-// Update the Jumping Logic
-if ((Phaser.Input.Keyboard.JustDown(spaceKey) || (this.isMobileJumping && player.body.touching.down)) && player.body.touching.down) {
-    player.setVelocityY(-500);
-    player.setAngularVelocity(300);
-}
+    // Update the Jumping Logic
+    if ((Phaser.Input.Keyboard.JustDown(spaceKey) || (this.isMobileJumping && player.body.touching.down)) && player.body.touching.down) {
+        player.setVelocityY(-500);
+        player.setAngularVelocity(300);
+    }
 
 }
 
@@ -281,11 +280,11 @@ function update() {
         let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
         if (distance < 400) {
             badGuy.setVelocityX(-100);
-            badGuy.setTint(0xff0000); 
+            badGuy.setTint(0xff0000);
         }
         else if (distance > 400) {
             badGuy.setVelocityX(100);
-            badGuy.setTint(0xff0000); 
+            badGuy.setTint(0xff0000);
         }
     });
 
@@ -323,8 +322,8 @@ function fireBullet() {
     b.setVelocityX(600);
     this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
 
-    this.socket.emit('playerShoots', { 
-        x: b.x, y: b.y, velocityX: 600, ownerId: this.socket.id 
+    this.socket.emit('playerShoots', {
+        x: b.x, y: b.y, velocityX: 600, ownerId: this.socket.id
     });
 }
 
@@ -346,7 +345,7 @@ function hitspike(player, spike) {
 function spawnBrick() {
     let key = Phaser.Math.RND.pick(brickTypes);
     let spawnX = this.cameras.main.scrollX + 900;
-    let spawnY = Phaser.Math.Between(150, 400); 
+    let spawnY = Phaser.Math.Between(150, 400);
     let brick = bricks.create(spawnX, spawnY, key);
     brick.setImmovable(true).body.allowGravity = false;
 
@@ -358,7 +357,7 @@ function spawnBrick() {
         let item = items.create(spawnX, spawnY - 65, type);
         item.body.allowGravity = false;
         item.type = type;
-    } 
+    }
     else if (chance > 40) {
         let type = Phaser.Math.RND.pick(itemTypes);
         let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
@@ -366,8 +365,8 @@ function spawnBrick() {
         badGuy.setBounce(0.2);
 
         let item = items.create(spawnX, spawnY - 65, type);
-        item.body.allowGravity = true; 
-        item.type = type; 
+        item.body.allowGravity = true;
+        item.type = type;
         item.setBounce(0.3);
     }
 }
@@ -412,9 +411,52 @@ function spawnRandomBrick() {
  */
 function cleanupObjects() {
     [spikes, bricks, items, enemy, bulletGroup, this.networkBullets].forEach(group => {
-        if(!group) return;
+        if (!group) return;
         group.getChildren().forEach(child => {
             if (child.x < this.cameras.main.scrollX - 150) child.destroy();
         });
     });
+}
+
+// --- UI HELPERS ---
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span>🔔</span> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s reverse forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+function showGameOverModal(finalScore) {
+    const overlay = document.getElementById('modal-overlay');
+    const nameInput = document.getElementById('player-name');
+    const submitBtn = document.getElementById('submit-score-btn');
+
+    overlay.style.display = 'flex';
+    nameInput.focus();
+
+    submitBtn.onclick = () => {
+        const name = nameInput.value || 'Player';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Submitting...';
+
+        fetch('/api/submit-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, score: finalScore })
+        }).then(() => {
+            window.location.href = '/';
+        }).catch(err => {
+            console.error(err);
+            showToast('Submission failed! Redirecting...');
+            setTimeout(() => window.location.href = '/', 2000);
+        });
+    };
 }
