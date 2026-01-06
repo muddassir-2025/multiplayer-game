@@ -1,3 +1,5 @@
+/** * GAME CONFIGURATION
+ */
 const config = {
     type: Phaser.AUTO,
     width: 800,
@@ -14,19 +16,20 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// --- GLOBAL VARIABLES ---
 let player, cursors, spaceKey, enterKey, ground;
 let score = 0;
 let bullets = 10;
-let health = 100; // Increased to 100 for better gameplay
+let health = 100;
 let flytime = 1000;
 
 let spikes, bricks, items, enemy, bulletGroup;
 let scoretext, flyText, bullettext, healthtext;
 
-let baseSpeed = 250;
+let baseSpeed = 350;
 let manualBoost = 150;
 
-let spikeTypes = ['spike1', 'spike2', 'spike3', 'spike4', 'spike6', 'spike7', 'spike8', 'spike9','enemy'];
+let spikeTypes = ['spike1', 'spike2', 'spike3', 'spike4', 'spike6', 'spike7', 'spike8', 'spike9', 'enemy'];
 let brickTypes = ['brick1', 'brick2', 'brick3', 'brick4', 'brick5', 'brick6', 'brick7', 'brick8'];
 let itemTypes = ['jetpack', 'gun', 'health'];
 
@@ -34,114 +37,101 @@ function preload() {
     this.load.image('box', 'assets/1box.png');
     this.load.image('ground', 'assets/ground.png');
     this.load.image('bg', 'assets/bg.png');
-    spikeTypes.forEach(s => this.load.image(s, `assets/${s}.png`));
-    brickTypes.forEach(b => this.load.image(b, `assets/${b}.png`));
     this.load.image('jetpack', 'assets/jetpack.png');
     this.load.image('gun', 'assets/gun.png');
     this.load.image('health', 'assets/health.png');
     this.load.image('bullet', 'assets/bullet.png');
     this.load.image('enemy', 'assets/enemy.png');
+
+    spikeTypes.forEach(s => this.load.image(s, `assets/${s}.png`));
+    brickTypes.forEach(b => this.load.image(b, `assets/${b}.png`));
 }
 
 function create() {
     this.socket = io();
 
-    // Group to hold all other players
+    // 1. MULTIPLAYER GROUPS
     this.otherPlayers = this.physics.add.group();
-    // Group to hold bullets from other players
     this.networkBullets = this.physics.add.group({
         defaultKey: 'bullet',
         maxSize: 30
     });
 
-    // --- Listen for events from the server ---
-    this.socket.on('currentPlayers', (players) => {
-        Object.keys(players).forEach((id) => {
-            if (players[id].playerId === this.socket.id) {
-                // This is the current player, assign their health
-                health = players[id].health;
-            } else {
-                addOtherPlayer.call(this, players[id]);
-            }
-        });
-    });
-
-    this.socket.on('newPlayer', (playerInfo) => {
-        addOtherPlayer.call(this, playerInfo);
-    });
-
-    this.socket.on('playerDisconnected', (playerId) => {
-        this.otherPlayers.getChildren().forEach((otherPlayer) => {
-            if (playerId === otherPlayer.playerId) {
-                otherPlayer.destroy();
-            }
-        });
-    });
-    
-    this.socket.on('playerMoved', (playerInfo) => {
-        this.otherPlayers.getChildren().forEach((otherPlayer) => {
-            if (playerInfo.playerId === otherPlayer.playerId) {
-                otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-            }
-        });
-    });
-
-    this.socket.on('bulletFired', (bulletData) => {
-        const bullet = this.networkBullets.create(bulletData.x, bulletData.y, 'bullet');
-        if (bullet) {
-            bullet.body.allowGravity = false;
-            bullet.setVelocityX(bulletData.velocityX);
-            bullet.ownerId = bulletData.ownerId; // Keep track of who shot the bullet
-            this.time.delayedCall(2000, () => { if (bullet.active) bullet.destroy(); });
-        }
-    });
-
-    this.socket.on('playerWasHit', (hitInfo) => {
-        if (hitInfo.playerId === this.socket.id) {
-            // This client was hit
-            health = hitInfo.health;
-            player.setTint(0xff0000);
-            this.time.delayedCall(200, () => player.clearTint());
-            if (health <= 0) {
-                this.physics.pause();
-                window.alert("You have been eliminated!");
-            }
-        } else {
-            // Another player was hit
-            this.otherPlayers.getChildren().forEach((otherPlayer) => {
-                if (hitInfo.playerId === otherPlayer.playerId) {
-                    // Optional: tint the other player to show they were hit
-                    otherPlayer.setTint(0xff0000);
-                    this.time.delayedCall(200, () => otherPlayer.clearTint());
-                }
-            });
-        }
-    });
-
-
+    // 2. BACKGROUND & WORLD
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
+    ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
+    this.physics.add.existing(ground, true);
 
+    // 3. PLAYER SETUP
+    player = this.physics.add.image(100, 450, 'box');
+    this.physics.add.collider(player, ground);
+
+    // 4. CAMERA
+    this.cameras.main.startFollow(player, true, 0.1, 0.1);
+    this.cameras.main.setFollowOffset(-250, 150);
+
+    // 5. INPUTS
     cursors = this.input.keyboard.createCursorKeys();
     spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
-    ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
-    this.physics.add.existing(ground, true);
-
-    player = this.physics.add.image(100, 450, 'box');
-    this.physics.add.collider(player, ground);
-
-    this.cameras.main.startFollow(player, true, 0.1, 0.1);
-    this.cameras.main.setFollowOffset(-250, 150);
-
-    // Groups
+    // 6. GROUPS
     spikes = this.physics.add.group();
     bricks = this.physics.add.group();
     items = this.physics.add.group();
     enemy = this.physics.add.group();
     bulletGroup = this.physics.add.group();
 
-    // Collisions
+    // 7. SOCKET LISTENERS
+    this.socket.on('currentPlayers', (players) => {
+        Object.keys(players).forEach((id) => {
+            if (players[id].playerId === this.socket.id) {
+                health = players[id].health || 100;
+            } else {
+                addOtherPlayer.call(this, players[id]);
+            }
+        });
+    });
+
+    this.socket.on('newPlayer', (playerInfo) => addOtherPlayer.call(this, playerInfo));
+
+    this.socket.on('playerDisconnected', (playerId) => {
+        this.otherPlayers.getChildren().forEach(op => {
+            if (playerId === op.playerId) op.destroy();
+        });
+    });
+
+    this.socket.on('playerMoved', (p) => {
+        this.otherPlayers.getChildren().forEach(op => {
+            if (p.playerId === op.playerId) op.setPosition(p.x, p.y);
+        });
+    });
+
+    this.socket.on('bulletFired', (data) => {
+        const b = this.networkBullets.create(data.x, data.y, 'bullet');
+        if (b) {
+            b.body.allowGravity = false;
+            b.setVelocityX(data.velocityX);
+            b.ownerId = data.ownerId;
+            this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
+        }
+    });
+
+    this.socket.on('playerWasHit', (info) => {
+        if (info.playerId === this.socket.id) {
+            health = info.health;
+            player.setTint(0xff0000);
+            this.cameras.main.shake(100, 0.02);
+            this.time.delayedCall(200, () => player.clearTint());
+            if (health <= 0) {
+                this.physics.pause();
+                window.alert("You have been eliminated!");
+                window.location.reload();
+            }
+        }
+    });
+
+    // 8. COLLISIONS
     this.physics.add.collider(player, spikes, hitspike, null, this);
     this.physics.add.collider(player, enemy, hitspike, null, this);
     this.physics.add.collider(player, bricks);
@@ -149,35 +139,40 @@ function create() {
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
     this.physics.add.collider(this.otherPlayers, ground);
-    this.physics.add.collider(this.otherPlayers, bricks);
-    
-    // Add collision for local player and network bullets
-    this.physics.add.overlap(player, this.networkBullets, (player, bullet) => {
-        // We don't want to get hit by our own bullet if there's lag
-        if (bullet.ownerId !== this.socket.id) {
+
+    // PvP Hit Detection
+    this.physics.add.overlap(player, this.networkBullets, (p, b) => {
+        if (b.ownerId !== this.socket.id) {
             this.socket.emit('playerHit', { playerId: this.socket.id });
-            bullet.destroy(); // Destroy bullet on impact
+            b.destroy();
         }
     }, null, this);
 
-
-    // Bullet destruction logic
+    // Bullet destruction vs Environment
     this.physics.add.collider(bulletGroup, enemy, (bullet, enmy) => {
+        this.cameras.main.shake(100, 0.01); 
+        explode.call(this, enmy.x, enmy.y);
         bullet.destroy();
         enmy.destroy();
-        score += 20;
-    });
-    this.physics.add.collider(bulletGroup, spikes, (bullet, s) => {
-        bullet.destroy();
-        s.destroy();
-        score += 10;
     });
 
-    // UI
+    this.physics.add.collider(bulletGroup, spikes, (bullet, s) => {
+        explode.call(this, s.x, s.y);
+        bullet.destroy();
+        s.destroy();
+    });
+
+    // 9. UI & PARTICLES
     scoretext = this.add.text(40, 40, 'Score: 0', { fontSize: '32px', fill: '#000' }).setScrollFactor(0);
     flyText = this.add.text(40, 80, 'Fuel: 1000', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
     healthtext = this.add.text(580, 40, 'Health: 100', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
     bullettext = this.add.text(580, 80, 'Bullets: 10', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
+
+    this.emitter = this.add.particles(0, 0, 'bullet', {
+        speed: 100, scale: { start: 0.4, end: 0 },
+        alpha: { start: 0.5, end: 0 }, lifespan: 500,
+        blendMode: 'ADD', follow: player
+    });
 
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
@@ -186,18 +181,13 @@ function create() {
 function update() {
     if (this.physics.world.isPaused || !player) return;
 
-    // --- Emit player movement ---
-    var oldPosition = {
-        x: player.x,
-        y: player.y
-    };
-
+    // Movement & Parallax
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.3;
     ground.x = this.cameras.main.scrollX + 400;
     ground.body.x = this.cameras.main.scrollX;
     ground.tilePositionX = this.cameras.main.scrollX;
 
-    // Flying
+    // Control Logic
     if (cursors.up.isDown && flytime > 0) {
         player.setVelocityY(-300);
         flytime -= 2;
@@ -205,120 +195,109 @@ function update() {
         this.cameras.main.zoomTo(0.7, 1000);
     } else {
         this.cameras.main.zoomTo(1, 1000);
-        if (player.body.touching.down) {
-            player.setAngle(0);
-            player.setAngularVelocity(0);
-        } else {
-            player.setAngle(0);
-        }
+        player.setAngle(0);
     }
 
-    // Jumping
     if (Phaser.Input.Keyboard.JustDown(spaceKey) && player.body.touching.down) {
-        player.setVelocityY(-450);
+        player.setVelocityY(-500);
         player.setAngularVelocity(300);
     }
 
-    // Movement
     player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
 
-    // Shooting
     if (Phaser.Input.Keyboard.JustDown(enterKey) && bullets > 0) {
         fireBullet.call(this);
     }
 
-    // --- Emit player movement ---
+    // Network Sync
     if (player.oldPosition && (player.x !== player.oldPosition.x || player.y !== player.oldPosition.y)) {
         this.socket.emit('playerMovement', { x: player.x, y: player.y });
     }
-     
-    // save old position data
-    player.oldPosition = {
-        x: player.x,
-        y: player.y,
-    };
+    player.oldPosition = { x: player.x, y: player.y };
 
+    // Enemy AI & Cleanup
+    enemy.getChildren().forEach(badGuy => {
+        // Jumping AI
+        if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
+            badGuy.setVelocityY(-400);
+        }
+        // Agro AI
+        let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
+        if (distance < 400) {
+            badGuy.setVelocityX(-100);
+            badGuy.setTint(0xff0000); 
+        }
+    });
 
-    // Cleanup & UI
     cleanupObjects.call(this);
+
+    // UI Updates
     score = Math.floor(player.x / 100);
     scoretext.setText('Score: ' + score);
     flyText.setText('Fuel: ' + Math.ceil(flytime));
     bullettext.setText('Bullets: ' + bullets);
     healthtext.setText('Health: ' + health);
+}
 
-    // --- ENEMY JUMPING LOGIC ---
-    enemy.getChildren().forEach(badGuy => {
-        if (badGuy.isJumper && badGuy.body.touching.down) {
-            if (Phaser.Math.Between(0, 100) > 98) { 
-                badGuy.setVelocityY(-400);
-            }
-        }
-        if (badGuy.x < this.cameras.main.scrollX - 100) {
-            badGuy.destroy();
-        }
+// --- HELPERS ---
+
+function explode(x, y) {
+    const ex = this.add.particles(x, y, 'bullet', {
+        speed: { min: -200, max: 200 }, angle: { min: 0, max: 360 },
+        scale: { start: 0.5, end: 0 }, lifespan: 400,
+        gravityY: 800, quantity: 10, emitting: false
     });
-}
-
-function spawnBrick() {
-    let randomBrickKey = Phaser.Math.RND.pick(brickTypes);
-    let spawnX = this.cameras.main.scrollX + 900;
-    let randomY = Phaser.Math.Between(150, 400);
-
-    let brick = bricks.create(spawnX, randomY, randomBrickKey);
-    brick.setImmovable(true).body.allowGravity = false;
-
-    let chance = Phaser.Math.Between(0, 100);
-    if (chance > 70) {
-        let type = Phaser.Math.RND.pick(itemTypes);
-         let badGuy = enemy.create(spawnX, randomY - 20, 'enemy');
-        let item = items.create(spawnX, randomY - 65, type);
-        item.body.allowGravity = false;
-        item.type = type;
-    } else if (chance > 40) {
-        let badGuy = enemy.create(spawnX, randomY - 45, 'enemy');
-       badGuy.body.allowGravity = true; // Must be true for jumping to work
-        badGuy.setBounce(0.2);           // Optional: slight bounce when landing
-        badGuy.setCollideWorldBounds(false);
-        
-        // // Add a custom property to help us identify jumping enemies
-        // badGuy.isJumper = true;
-    }
-}
-
-function hitspike(player, spike) {
-    spike.destroy(); 
-    health -= 10;
-    player.setTint(0xff0000);
-    this.time.delayedCall(200, () => player.clearTint());
-
-    if (health <= 0) {
-        health = 0;
-        this.physics.pause();
-        this.time.delayedCall(1000, () => {
-            window.alert("you loose")
-        });
-    }
+    ex.explode();
 }
 
 function fireBullet() {
-    if (bullets > 0) {
-        bullets--;
-        const bullet = bulletGroup.create(player.x + 20, player.y, 'bullet');
-        if (bullet) {
-            bullet.body.allowGravity = false;
-            bullet.setVelocityX(600);
-            this.time.delayedCall(2000, () => { if (bullet.active) bullet.destroy(); });
+    bullets--;
+    const b = bulletGroup.create(player.x + 20, player.y, 'bullet');
+    b.body.allowGravity = false;
+    b.setVelocityX(600);
+    this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
 
-            // Emit an event to the server
-            this.socket.emit('playerShoots', { 
-                x: bullet.x, 
-                y: bullet.y, 
-                velocityX: 600,
-                ownerId: this.socket.id 
-            });
-        }
+    this.socket.emit('playerShoots', { 
+        x: b.x, y: b.y, velocityX: 600, ownerId: this.socket.id 
+    });
+}
+
+function hitspike(player, spike) {
+    spike.destroy();
+    health -= 10;
+    player.setTint(0xff0000);
+    this.cameras.main.shake(200, 0.05);
+    this.time.delayedCall(200, () => player.clearTint());
+    // In multiplayer, usually the server updates health, but we'll check locally too
+    this.socket.emit('playerHit', { playerId: this.socket.id, damage: 10 });
+}
+
+function spawnBrick() {
+    let key = Phaser.Math.RND.pick(brickTypes);
+    let spawnX = this.cameras.main.scrollX + 900;
+    let spawnY = Phaser.Math.Between(150, 400);
+    let brick = bricks.create(spawnX, spawnY, key);
+    brick.setImmovable(true).body.allowGravity = false;
+
+    let chance = Phaser.Math.Between(0, 100);
+    if (chance > 40) {
+        let type = Phaser.Math.RND.pick(itemTypes);
+        let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
+        badGuy.body.allowGravity = true;
+        badGuy.isJumper = (chance > 70); // Jumpers if chance is high
+
+        let item = items.create(spawnX, spawnY - 65, type);
+        item.type = type;
+        item.body.allowGravity = true;
+        item.setBounce(0.3);
     }
+}
+
+function addOtherPlayer(playerInfo) {
+    const op = this.physics.add.image(playerInfo.x, playerInfo.y, 'box');
+    op.setTint(0x0000ff);
+    op.playerId = playerInfo.playerId;
+    this.otherPlayers.add(op);
 }
 
 function collectItem(player, item) {
@@ -343,15 +322,10 @@ function spawnRandomBrick() {
 }
 
 function cleanupObjects() {
-    [spikes, bricks, items, enemy, bulletGroup].forEach(group => {
+    [spikes, bricks, items, enemy, bulletGroup, this.networkBullets].forEach(group => {
+        if(!group) return;
         group.getChildren().forEach(child => {
-            if (child.x < this.cameras.main.scrollX - 100) child.destroy();
+            if (child.x < this.cameras.main.scrollX - 150) child.destroy();
         });
     });
-}
-function addOtherPlayer(playerInfo) {
-    const otherPlayer = this.physics.add.image(playerInfo.x, playerInfo.y, 'box');
-    otherPlayer.setTint(0x0000ff);
-    otherPlayer.playerId = playerInfo.playerId;
-    this.otherPlayers.add(otherPlayer);
 }
