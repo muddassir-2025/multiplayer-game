@@ -5,80 +5,81 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
-// The port Render will use, with a fallback for local development
+// Deployment Port: Render/Heroku will provide a PORT, otherwise use 3000
 const PORT = process.env.PORT || 3000;
 
-// --- Static File Serving ---
-// This is the key change: Serve all files from the project's 'public' directory.
+// --- Middleware & Static Routing ---
+// Serves images, scripts, and CSS from the /public folder
 app.use(express.static(__dirname + '/public'));
 
-// Serve index.html as the main page
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
+// Centralized store for all active player data
 const players = {};
 
-// --- Socket.IO Game Logic ---
+// --- Socket.IO Event Handling ---
 io.on('connection', (socket) => {
-  console.log(`A user connected: ${socket.id}`);
+  console.log(`User Joined: ${socket.id}`);
 
-  // Create a new player and add it to the players object
+  // Initialize player state on the server
   players[socket.id] = {
     x: Math.floor(Math.random() * 700) + 50,
     y: 450,
     playerId: socket.id,
-    health: 100, // Add health property
+    health: 100,
   };
   
-  // Send the players object to the new player
+  // STEP 1: Sync the new player with existing world state
   socket.emit('currentPlayers', players);
   
-  // Update all other players of the new player
+  // STEP 2: Notify everyone else that a new challenger has appeared
   socket.broadcast.emit('newPlayer', players[socket.id]);
 
-  // Listen for player movement
+  // Handle Movement Updates (Relay to others)
   socket.on('playerMovement', (movementData) => {
     if (players[socket.id]) {
       players[socket.id].x = movementData.x;
       players[socket.id].y = movementData.y;
-      // Broadcast the movement to all other players
+      // broadcast.emit saves bandwidth by not sending your own coords back to you
       socket.broadcast.emit('playerMoved', players[socket.id]);
     }
   });
 
-  // Listen for shooting event
+  // Handle Projectiles (Relay to others)
   socket.on('playerShoots', (bulletData) => {
     socket.broadcast.emit('bulletFired', bulletData);
   });
 
-  // Listen for when a player is hit
+  // AUTHORITATIVE HEALTH LOGIC:
+  // We process damage here so all players see the exact same health values.
   socket.on('playerHit', (hitData) => {
-    if (players[hitData.playerId]) {
-      players[hitData.playerId].health -= 10;
-      if (players[hitData.playerId].health <= 0) {
-        // Handle player death if necessary
-        console.log(`${hitData.playerId} has been eliminated.`);
+    const targetId = hitData.playerId;
+    if (players[targetId]) {
+      players[targetId].health -= 10;
+      
+      if (players[targetId].health <= 0) {
+        console.log(`Elimination: ${targetId}`);
+        // You could add logic here to reset their health or track a death count
       }
-      // Broadcast the hit and updated health to all clients
+      
+      // io.emit (everyone) ensures the victim AND the shooter see the health drop
       io.emit('playerWasHit', { 
-        playerId: hitData.playerId, 
-        health: players[hitData.playerId].health 
+        playerId: targetId, 
+        health: players[targetId].health 
       });
     }
   });
 
-  // Handle disconnection
+  // Cleanup on Exit
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-    // Remove this player from our players object
+    console.log(`User Left: ${socket.id}`);
     delete players[socket.id];
-    // Emit a message to all other players to remove this player
     io.emit('playerDisconnected', socket.id);
   });
 });
 
-// --- Start Server ---
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Game Server running on port ${PORT}`);
 });

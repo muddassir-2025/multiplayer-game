@@ -1,4 +1,5 @@
 /** * GAME CONFIGURATION
+ * Configures the Phaser engine, physics, and main scene hooks.
  */
 const config = {
     type: Phaser.AUTO,
@@ -23,16 +24,21 @@ let bullets = 10;
 let health = 100;
 let flytime = 1000;
 
+// Groups for object pooling and collision management
 let spikes, bricks, items, enemy, bulletGroup;
 let scoretext, flyText, bullettext, healthtext;
 
 let baseSpeed = 350;
 let manualBoost = 150;
 
+// Arrays containing asset keys for random generation
 let spikeTypes = ['spike1', 'spike2', 'spike3', 'spike4', 'spike6', 'spike7', 'spike8', 'spike9', 'enemy'];
 let brickTypes = ['brick1', 'brick2', 'brick3', 'brick4', 'brick5', 'brick6', 'brick7', 'brick8'];
 let itemTypes = ['jetpack', 'gun', 'health'];
 
+/**
+ * PRELOAD: Load images into memory before game starts.
+ */
 function preload() {
     this.load.image('box', 'assets/1box.png');
     this.load.image('ground', 'assets/ground.png');
@@ -43,46 +49,51 @@ function preload() {
     this.load.image('bullet', 'assets/bullet.png');
     this.load.image('enemy', 'assets/enemy.png');
 
+    // Load dynamic variations
     spikeTypes.forEach(s => this.load.image(s, `assets/${s}.png`));
     brickTypes.forEach(b => this.load.image(b, `assets/${b}.png`));
 }
 
+/**
+ * CREATE: Initialize objects, networking, and input listeners.
+ */
 function create() {
     this.socket = io();
 
-    // 1. MULTIPLAYER GROUPS
+    // 1. MULTIPLAYER GROUPS (Other players and their bullets)
     this.otherPlayers = this.physics.add.group();
     this.networkBullets = this.physics.add.group({
         defaultKey: 'bullet',
         maxSize: 30
     });
 
-    // 2. BACKGROUND & WORLD
+    // 2. BACKGROUND & WORLD (Parallax setup)
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
     ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
     this.physics.add.existing(ground, true);
 
     // 3. PLAYER SETUP
     player = this.physics.add.image(100, 450, 'box');
+    player.setDepth(10); // Ensure player is always on top
     this.physics.add.collider(player, ground);
 
-    // 4. CAMERA
+    // 4. CAMERA SETUP (Follows player with an offset)
     this.cameras.main.startFollow(player, true, 0.1, 0.1);
     this.cameras.main.setFollowOffset(-250, 150);
 
-    // 5. INPUTS
+    // 5. INPUT REGISTRATION
     cursors = this.input.keyboard.createCursorKeys();
     spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
-    // 6. GROUPS
+    // 6. OBJECT GROUPS
     spikes = this.physics.add.group();
     bricks = this.physics.add.group();
     items = this.physics.add.group();
     enemy = this.physics.add.group();
     bulletGroup = this.physics.add.group();
 
-    // 7. SOCKET LISTENERS
+    // 7. SOCKET LISTENERS (Handling Server Events)
     this.socket.on('currentPlayers', (players) => {
         Object.keys(players).forEach((id) => {
             if (players[id].playerId === this.socket.id) {
@@ -119,7 +130,7 @@ function create() {
 
     this.socket.on('playerWasHit', (info) => {
         if (info.playerId === this.socket.id) {
-            health = info.health;
+            health = info.health; // Sync health with server source of truth
             player.setTint(0xff0000);
             this.cameras.main.shake(100, 0.02);
             this.time.delayedCall(200, () => player.clearTint());
@@ -131,16 +142,19 @@ function create() {
         }
     });
 
-    // 8. COLLISIONS
+    // 8. COLLISIONS & OVERLAPS
     this.physics.add.collider(player, spikes, hitspike, null, this);
     this.physics.add.collider(player, enemy, hitspike, null, this);
     this.physics.add.collider(player, bricks);
     this.physics.add.overlap(player, items, collectItem, null, this);
+    
+    // Environmental collisions
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
+    this.physics.add.collider(items, ground); // Fix: items hit the ground
     this.physics.add.collider(this.otherPlayers, ground);
 
-    // PvP Hit Detection
+    // PvP Hit Detection (When a network bullet hits YOU)
     this.physics.add.overlap(player, this.networkBullets, (p, b) => {
         if (b.ownerId !== this.socket.id) {
             this.socket.emit('playerHit', { playerId: this.socket.id });
@@ -148,7 +162,7 @@ function create() {
         }
     }, null, this);
 
-    // Bullet destruction vs Environment
+    // Bullet vs Enemy/Spikes
     this.physics.add.collider(bulletGroup, enemy, (bullet, enmy) => {
         this.cameras.main.shake(100, 0.01); 
         explode.call(this, enmy.x, enmy.y);
@@ -168,28 +182,31 @@ function create() {
     healthtext = this.add.text(580, 40, 'Health: 100', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
     bullettext = this.add.text(580, 80, 'Bullets: 10', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
 
+    // Thruster/Trail effect
     this.emitter = this.add.particles(0, 0, 'bullet', {
         speed: 100, scale: { start: 0.4, end: 0 },
         alpha: { start: 0.5, end: 0 }, lifespan: 500,
         blendMode: 'ADD', follow: player
     });
 
+    // Initial Spawning
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
-
-    
 }
 
+/**
+ * UPDATE: Game loop running every frame.
+ */
 function update() {
     if (this.physics.world.isPaused || !player) return;
 
-    // Movement & Parallax
+    // Background scrolling
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.3;
     ground.x = this.cameras.main.scrollX + 400;
     ground.body.x = this.cameras.main.scrollX;
     ground.tilePositionX = this.cameras.main.scrollX;
 
-    // Control Logic
+    // Movement: Jetpack Logic
     if (cursors.up.isDown && flytime > 0) {
         player.setVelocityY(-300);
         flytime -= 2;
@@ -200,30 +217,31 @@ function update() {
         player.setAngle(0);
     }
 
+    // Movement: Ground Jump
     if (Phaser.Input.Keyboard.JustDown(spaceKey) && player.body.touching.down) {
         player.setVelocityY(-500);
         player.setAngularVelocity(300);
     }
 
+    // Movement: Constant Rightward Motion
     player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
 
+    // Combat: Shooting
     if (Phaser.Input.Keyboard.JustDown(enterKey) && bullets > 0) {
         fireBullet.call(this);
     }
 
-    // Network Sync
+    // Networking: Send position to server
     if (player.oldPosition && (player.x !== player.oldPosition.x || player.y !== player.oldPosition.y)) {
         this.socket.emit('playerMovement', { x: player.x, y: player.y });
     }
     player.oldPosition = { x: player.x, y: player.y };
 
-    // Enemy AI & Cleanup
+    // Enemy AI: Simple agro and jumping
     enemy.getChildren().forEach(badGuy => {
-        // Jumping AI
         if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
             badGuy.setVelocityY(-400);
         }
-        // Agro AI
         let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
         if (distance < 400) {
             badGuy.setVelocityX(-100);
@@ -233,7 +251,7 @@ function update() {
 
     cleanupObjects.call(this);
 
-    // UI Updates
+    // Refresh HUD
     score = Math.floor(player.x / 100);
     scoretext.setText('Score: ' + score);
     flyText.setText('Fuel: ' + Math.ceil(flytime));
@@ -243,6 +261,9 @@ function update() {
 
 // --- HELPERS ---
 
+/**
+ * Creates a particle explosion effect.
+ */
 function explode(x, y) {
     const ex = this.add.particles(x, y, 'bullet', {
         speed: { min: -200, max: 200 }, angle: { min: 0, max: 360 },
@@ -252,6 +273,9 @@ function explode(x, y) {
     ex.explode();
 }
 
+/**
+ * Instantiates a bullet and notifies the server.
+ */
 function fireBullet() {
     bullets--;
     const b = bulletGroup.create(player.x + 20, player.y, 'bullet');
@@ -264,20 +288,25 @@ function fireBullet() {
     });
 }
 
+/**
+ * Handles hazard collision and alerts the server.
+ */
 function hitspike(player, spike) {
     spike.destroy();
-    health -= 10;
+    // health -= 10; // REMOVED: Server will emit 'playerWasHit' to sync this
     player.setTint(0xff0000);
     this.cameras.main.shake(200, 0.05);
     this.time.delayedCall(200, () => player.clearTint());
-    // In multiplayer, usually the server updates health, but we'll check locally too
     this.socket.emit('playerHit', { playerId: this.socket.id, damage: 10 });
 }
 
+/**
+ * Spawns a brick with potential items/enemies on top.
+ */
 function spawnBrick() {
     let key = Phaser.Math.RND.pick(brickTypes);
     let spawnX = this.cameras.main.scrollX + 900;
-    let spawnY = Phaser.Math.Between(150, 400); // This is the variable name
+    let spawnY = Phaser.Math.Between(150, 400); 
     let brick = bricks.create(spawnX, spawnY, key);
     brick.setImmovable(true).body.allowGravity = false;
 
@@ -285,7 +314,6 @@ function spawnBrick() {
 
     if (chance > 70) {
         let type = Phaser.Math.RND.pick(itemTypes);
-        // Changed randomY to spawnY below
         enemy.create(spawnX, spawnY - 20, 'enemy');
         let item = items.create(spawnX, spawnY - 65, type);
         item.body.allowGravity = false;
@@ -293,7 +321,6 @@ function spawnBrick() {
     } 
     else if (chance > 40) {
         let type = Phaser.Math.RND.pick(itemTypes);
-        // Changed randomY to spawnY below
         let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
         badGuy.body.allowGravity = true;
         badGuy.setBounce(0.2);
@@ -305,6 +332,9 @@ function spawnBrick() {
     }
 }
 
+/**
+ * Adds a visual representation of another player connected to the server.
+ */
 function addOtherPlayer(playerInfo) {
     const op = this.physics.add.image(playerInfo.x, playerInfo.y, 'box');
     op.setTint(0x0000ff);
@@ -312,6 +342,9 @@ function addOtherPlayer(playerInfo) {
     this.otherPlayers.add(op);
 }
 
+/**
+ * Item collection logic.
+ */
 function collectItem(player, item) {
     if (item.type === 'jetpack') flytime = Math.min(flytime + 200, 1000);
     else if (item.type === 'gun') bullets += 10;
@@ -319,6 +352,7 @@ function collectItem(player, item) {
     item.destroy();
 }
 
+// Infinite recursive spawning loops
 function spawnRandomSpike() {
     if (this.physics.world.isPaused) return;
     let spawnX = this.cameras.main.scrollX + 900;
@@ -333,6 +367,9 @@ function spawnRandomBrick() {
     this.time.delayedCall(Phaser.Math.Between(1000, 4000), spawnRandomBrick, [], this);
 }
 
+/**
+ * Memory Management: Removes objects that have scrolled off-screen.
+ */
 function cleanupObjects() {
     [spikes, bricks, items, enemy, bulletGroup, this.networkBullets].forEach(group => {
         if(!group) return;
