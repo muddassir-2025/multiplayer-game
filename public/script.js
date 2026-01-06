@@ -182,6 +182,7 @@ function create() {
 
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
+    spawnRandomFallingItem.call(this);
 }
 
 function update() {
@@ -349,6 +350,21 @@ function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
     this.time.delayedCall(Phaser.Math.Between(1000, 4000), spawnRandomBrick, [], this);
+}
+
+function spawnRandomFallingItem() {
+    if (this.physics.world.isPaused) return;
+
+    let type = Phaser.Math.RND.pick(itemTypes);
+    // Spawn at a random x position across the screen, relative to the camera
+    let spawnX = this.cameras.main.scrollX + Phaser.Math.Between(100, 700);
+    
+    // Spawn just above the top of the screen
+    let item = items.create(spawnX, this.cameras.main.scrollY, type);
+    item.setBounce(0.5);
+    item.type = type;
+    
+    this.time.delayedCall(Phaser.Math.Between(3000, 7000), spawnRandomFallingItem, [], this);
 }
 
 function cleanupObjects() {
