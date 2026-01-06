@@ -26,8 +26,15 @@ let health = 100;
 let flytime = 1000;
 
 // Groups for object pooling and collision management
+
 let spikes, bricks, items, enemy, bulletGroup;
-let scoretext, flyText, bullettext, healthtext;
+// let scoretext, flyText, bullettext, healthtext; // REMOVED: Using DOM HUD
+
+// Gameplay Variables
+let lastDash = 0;
+let comboCount = 0;
+let comboTimer = 0;
+let shiftKey;
 
 let baseSpeed = 350;
 let manualBoost = 150;
@@ -70,6 +77,8 @@ function create() {
 
     // 2. BACKGROUND & WORLD (Parallax setup)
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
+
+    // Ground
     ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
     this.physics.add.existing(ground, true);
 
@@ -77,6 +86,16 @@ function create() {
     player = this.physics.add.image(100, 450, 'box');
     player.setDepth(10); // Ensure player is always on top
     this.physics.add.collider(player, ground);
+
+    // Neon Trail Effect
+    const particles = this.add.particles(0, 0, 'box', {
+        speed: 10,
+        scale: { start: 0.04, end: 0 },
+        alpha: { start: 0.5, end: 0 },
+        lifespan: 200,
+        blendMode: 'ADD',
+        follow: player
+    });
 
     // 4. CAMERA SETUP (Follows player with an offset)
     this.cameras.main.startFollow(player, true, 0.1, 0.1);
@@ -86,6 +105,7 @@ function create() {
     cursors = this.input.keyboard.createCursorKeys();
     spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
     // 6. OBJECT GROUPS
     spikes = this.physics.add.group();
@@ -177,10 +197,7 @@ function create() {
     });
 
     // 9. UI & PARTICLES
-    scoretext = this.add.text(40, 40, 'Score: 0', { fontSize: '32px', fill: '#000' }).setScrollFactor(0);
-    flyText = this.add.text(40, 80, 'Fuel: 1000', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
-    healthtext = this.add.text(580, 40, 'Health: 100', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
-    bullettext = this.add.text(580, 80, 'Bullets: 10', { fontSize: '24px', fill: '#000' }).setScrollFactor(0);
+    // Phaser Text UI Removed in favor of DOM UI
 
     // Thruster/Trail effect
     this.emitter = this.add.particles(0, 0, 'bullet', {
@@ -259,7 +276,25 @@ function update() {
     }
 
     // Movement: Constant Rightward Motion
-    player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
+    let currentSpeed = baseSpeed;
+
+    // Skill: Dash (Shift Key) - Costs 200 Fuel
+    if (Phaser.Input.Keyboard.JustDown(shiftKey) && flytime >= 200) {
+        player.setVelocityX(baseSpeed + 800); // Burst of speed
+        flytime -= 200;
+        currentSpeed = baseSpeed + 800;
+
+        // Dash Effects
+        this.cameras.main.shake(100, 0.01);
+        const dashParticles = this.add.particles(player.x, player.y, 'box', {
+            speed: 100, scale: { start: 0.05, end: 0 },
+            lifespan: 300, blendMode: 'ADD', tint: 0x00f3ff,
+            quantity: 10
+        });
+        this.time.delayedCall(300, () => dashParticles.destroy());
+    } else {
+        player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
+    }
 
     // Combat: Shooting
     if (Phaser.Input.Keyboard.JustDown(enterKey) && bullets > 0) {
@@ -290,12 +325,26 @@ function update() {
 
     cleanupObjects.call(this);
 
-    // Refresh HUD
+    // Refresh HUD (DOM)
     score = Math.floor(player.x / 100);
-    scoretext.setText('Score: ' + score);
-    flyText.setText('Fuel: ' + Math.ceil(flytime));
-    bullettext.setText('Bullets: ' + bullets);
-    healthtext.setText('Health: ' + health);
+
+    // Update DOM elements
+    document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
+    document.getElementById('ammo-val').innerText = bullets;
+
+    const hpPercent = Math.max(0, health);
+    document.getElementById('hp-bar').style.width = hpPercent + '%';
+
+    const fuelPercent = Math.max(0, (flytime / 1000) * 100);
+    document.getElementById('fuel-bar').style.width = fuelPercent + '%';
+
+    // Combo Timer Decay
+    if (comboTimer > 0) {
+        comboTimer--;
+    } else {
+        comboCount = 0;
+        document.getElementById('combo-container').style.display = 'none';
+    }
 }
 
 // --- HELPERS ---
@@ -310,6 +359,17 @@ function explode(x, y) {
         gravityY: 800, quantity: 10, emitting: false
     });
     ex.explode();
+
+    // Combo Logic: Killing enemies resets timer and increments count
+    comboCount++;
+    comboTimer = 150; // Frames (approx 2.5 seconds)
+
+    // Update Combo UI
+    const comboContainer = document.getElementById('combo-container');
+    const comboVal = document.getElementById('combo-val');
+    comboContainer.style.display = 'block';
+    comboVal.innerText = 'x' + comboCount;
+    comboVal.style.color = comboCount > 5 ? '#ffea00' : '#ff0055'; // Gold if high combo
 }
 
 /**

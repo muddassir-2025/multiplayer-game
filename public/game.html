@@ -135,6 +135,160 @@
             transform: scale(1.05);
         }
 
+        /* HUD Styles */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: none;
+            /* Let clicks pass through */
+        }
+
+        .hud-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar-box {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #00f3ff;
+            border-radius: 10px;
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .avatar-box img {
+            width: 80%;
+            height: auto;
+        }
+
+        .bars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 200px;
+        }
+
+        .bar-wrap {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s;
+        }
+
+        .hp-fill {
+            background: linear-gradient(90deg, #ff0055, #ff4444);
+            box-shadow: 0 0 10px #ff0055;
+        }
+
+        .fuel-fill {
+            background: linear-gradient(90deg, #00f3ff, #00aaff);
+            box-shadow: 0 0 10px #00f3ff;
+        }
+
+        .score-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .score-label {
+            font-size: 0.8rem;
+            color: #aaa;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .score-val {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(188, 19, 254, 0.6);
+            font-family: 'Courier New', monospace;
+            /* Cyberpunk number feel */
+        }
+
+        .ammo-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .ammo-count {
+            font-size: 3rem;
+            color: #00f3ff;
+            font-weight: bold;
+            text-shadow: 0 0 15px #00f3ff;
+        }
+
+        .ammo-label {
+            font-size: 1rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        /* Combo Styles */
+        #combo-container {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            animation: pulse-red 0.5s infinite alternate;
+        }
+
+        .combo-val {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #ff0055;
+            font-style: italic;
+            text-shadow: 5px 5px 0px #000;
+            line-height: 1;
+        }
+
+        .combo-label {
+            font-size: 1.2rem;
+            color: #fff;
+            background: #ff0055;
+            padding: 2px 10px;
+            transform: skew(-10deg);
+            display: inline-block;
+        }
+
+        @keyframes pulse-red {
+            from {
+                transform: translateX(-50%) scale(1);
+            }
+
+            to {
+                transform: translateX(-50%) scale(1.1);
+            }
+        }
+
         @media screen and (orientation:portrait) {
             body::after {
                 content: "Please rotate your device to landscape!";
@@ -152,6 +306,40 @@
 </head>
 
 <body>
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-row">
+            <div class="avatar-box">
+                <img src="assets/neon_box.png" alt="Avatar">
+            </div>
+            <div class="bars-container">
+                <div class="bar-wrap">
+                    <div class="bar-fill hp-fill" id="hp-bar" style="width: 100%;"></div>
+                </div>
+                <div class="bar-wrap">
+                    <div class="bar-fill fuel-fill" id="fuel-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Combo Counter -->
+    <div id="combo-container" style="display: none;">
+        <div class="combo-val" id="combo-val">x1</div>
+        <div class="combo-label">COMBO</div>
+    </div>
+
+    <div class="score-container">
+        <div class="score-label">DISTANCE SCORE</div>
+        <div class="score-val" id="score-val">0000</div>
+    </div>
+
+    <div class="ammo-container">
+        <div class="ammo-count" id="ammo-val">10</div>
+        <div class="ammo-label">PLASMA BOLTS</div>
+    </div>
+
     <div id="toast-container"></div>
 
     <div id="modal-overlay">
