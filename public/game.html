@@ -319,6 +319,10 @@
                 <div class="bar-wrap">
                     <div class="bar-fill fuel-fill" id="fuel-bar" style="width: 100%;"></div>
                 </div>
+                <div id="difficulty-display"
+                    style="color: #ff0055; font-weight: bold; font-size: 0.9rem; text-shadow: 0 0 5px #ff0055; margin-top: 5px;">
+                    DANGER LEVEL: 1
+                </div>
             </div>
         </div>
     </div>
@@ -348,6 +352,26 @@
             <p>Enter your name to eternalize your score.</p>
             <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="15">
             <button class="btn-submit" id="submit-score-btn">SUBMIT SCORE</button>
+        </div>
+    </div>
+
+    <!-- How to Play Modal (Copied structure, hidden by default) -->
+    <div id="tutorial-overlay"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; align-items: center; justify-content: center;">
+        <div class="modal" style="text-align: left; max-width: 600px;">
+            <h2 style="text-align: center; color: #00f3ff;">HOW TO PLAY</h2>
+            <ul
+                style="color: #ccc; font-family: 'Courier New', monospace; line-height: 1.6; list-style: none; padding: 0;">
+                <li>🚀 <b>ARROWS / WASD</b>: Move & Fly</li>
+                <li>⚡ <b>SHIFT</b>: DASH (Costs Fuel, invincible)</li>
+                <li>🔫 <b>ENTER</b>: Shoot Plasma Bolts</li>
+                <li>💥 <b>COMBO</b>: Kill enemies quickly for points</li>
+                <li>💀 <b>HARD MODE</b>: Speed increases over time!</li>
+            </ul>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn-submit"
+                    onclick="document.getElementById('tutorial-overlay').style.display='none'">GOT IT</button>
+            </div>
         </div>
     </div>
     <script src="/socket.io/socket.io.js"></script>

@@ -35,6 +35,13 @@ let lastDash = 0;
 let comboCount = 0;
 let comboTimer = 0;
 let shiftKey;
+let isDashing = false;
+let dashTimer = 0;
+
+// Hard Mode Variables
+let difficultyLevel = 1;
+let difficultyTimer = 0;
+let startTime = Date.now();
 
 let baseSpeed = 350;
 let manualBoost = 150;
@@ -143,9 +150,22 @@ function create() {
         const b = this.networkBullets.create(data.x, data.y, 'bullet');
         if (b) {
             b.body.allowGravity = false;
-            b.setVelocityX(data.velocityX);
+            b.setVelocity(data.velocityX, data.velocityY || 0);
+            b.setTint(0xffaa00); // Plasma Fire Orange
             b.ownerId = data.ownerId;
-            this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
+
+            // Heavy Boost Trail
+            const trail = this.add.particles(0, 0, 'bullet', {
+                speed: 100, scale: { start: 0.4, end: 0 },
+                alpha: { start: 0.6, end: 0 }, lifespan: 300,
+                blendMode: 'ADD', tint: 0xffaa00,
+                follow: b
+            });
+
+            this.time.delayedCall(2000, () => {
+                if (b.active) b.destroy();
+                trail.destroy();
+            });
         }
     });
 
@@ -275,25 +295,49 @@ function update() {
         player.setAngularVelocity(300);
     }
 
-    // Movement: Constant Rightward Motion
-    let currentSpeed = baseSpeed;
+    // Difficulty Scaling (Every ~10 seconds @ 60fps)
+    difficultyTimer++;
+    if (difficultyTimer > 600) {
+        difficultyTimer = 0;
+        difficultyLevel++;
+        baseSpeed += 40; // Ramps up speed significantly
 
-    // Skill: Dash (Shift Key) - Costs 200 Fuel
-    if (Phaser.Input.Keyboard.JustDown(shiftKey) && flytime >= 200) {
-        player.setVelocityX(baseSpeed + 800); // Burst of speed
-        flytime -= 200;
-        currentSpeed = baseSpeed + 800;
+        // Visual indicator
+        showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
 
-        // Dash Effects
-        this.cameras.main.shake(100, 0.01);
-        const dashParticles = this.add.particles(player.x, player.y, 'box', {
-            speed: 100, scale: { start: 0.05, end: 0 },
-            lifespan: 300, blendMode: 'ADD', tint: 0x00f3ff,
-            quantity: 10
-        });
-        this.time.delayedCall(300, () => dashParticles.destroy());
+        // Cap fuel regen or increase consumption?
+        // For now just speed is enough chaos
+    }
+
+    // Movement Logic
+    if (isDashing) {
+        // LOCK movement during dash
+        dashTimer--;
+        if (dashTimer <= 0) {
+            isDashing = false;
+            player.setVelocityX(baseSpeed); // Reset to normal speed
+        }
     } else {
-        player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
+        // Normal Movement
+
+        // Skill: Dash (Shift Key) - Costs 200 Fuel
+        if (Phaser.Input.Keyboard.JustDown(shiftKey) && flytime >= 200) {
+            isDashing = true;
+            dashTimer = 20; // Dash lasts ~330ms (20 frames)
+            player.setVelocityX(baseSpeed + 1500); // SUPER FAST
+            flytime -= 200;
+
+            // Dash Effects
+            this.cameras.main.shake(200, 0.02);
+            const dashParticles = this.add.particles(player.x, player.y, 'box', {
+                speed: 100, scale: { start: 0.1, end: 0 },
+                lifespan: 500, blendMode: 'ADD', tint: 0x00f3ff,
+                quantity: 20
+            });
+            this.time.delayedCall(500, () => dashParticles.destroy());
+        } else {
+            player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
+        }
     }
 
     // Combat: Shooting
@@ -345,6 +389,9 @@ function update() {
         comboCount = 0;
         document.getElementById('combo-container').style.display = 'none';
     }
+
+    // Update Difficulty UI
+    document.getElementById('difficulty-display').innerText = 'DANGER LEVEL: ' + difficultyLevel;
 }
 
 // --- HELPERS ---
@@ -375,15 +422,37 @@ function explode(x, y) {
 /**
  * Instantiates a bullet and notifies the server.
  */
+/**
+ * Instantiates a TRIPLE SHOT and notifies the server.
+ */
 function fireBullet() {
     bullets--;
-    const b = bulletGroup.create(player.x + 20, player.y, 'bullet');
-    b.body.allowGravity = false;
-    b.setVelocityX(600);
-    this.time.delayedCall(2000, () => { if (b.active) b.destroy(); });
 
-    this.socket.emit('playerShoots', {
-        x: b.x, y: b.y, velocityX: 600, ownerId: this.socket.id
+    // Spread Angles
+    const angles = [0, -150, 150];
+
+    angles.forEach(vy => {
+        const b = bulletGroup.create(player.x + 20, player.y, 'bullet');
+        b.body.allowGravity = false;
+        b.setVelocity(900, vy);
+        b.setTint(0xffaa00); // Plasma Fire Orange
+
+        // Heavy Boost Trail
+        const trail = this.add.particles(0, 0, 'bullet', {
+            speed: 100, scale: { start: 0.4, end: 0 },
+            alpha: { start: 0.6, end: 0 }, lifespan: 300,
+            blendMode: 'ADD', tint: 0xffaa00,
+            follow: b
+        });
+
+        this.time.delayedCall(2000, () => {
+            if (b.active) b.destroy();
+            trail.destroy();
+        });
+
+        this.socket.emit('playerShoots', {
+            x: b.x, y: b.y, velocityX: 900, velocityY: vy, ownerId: this.socket.id
+        });
     });
 }
 
@@ -457,13 +526,18 @@ function spawnRandomSpike() {
     let spawnX = this.cameras.main.scrollX + 900;
     let spike = spikes.create(spawnX, 550, Phaser.Math.RND.pick(spikeTypes));
     spike.setImmovable(true).body.allowGravity = false;
-    this.time.delayedCall(Phaser.Math.Between(1500, 4000), spawnRandomSpike, [], this);
+    // Hard Mode: Spawn faster as difficulty increases
+    let delay = Phaser.Math.Between(1500, 4000) - (difficultyLevel * 100);
+    delay = Math.max(500, delay); // Cap at 500ms
+    this.time.delayedCall(delay, spawnRandomSpike, [], this);
 }
 
 function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
-    this.time.delayedCall(Phaser.Math.Between(1000, 4000), spawnRandomBrick, [], this);
+    let delay = Phaser.Math.Between(1000, 4000) - (difficultyLevel * 100);
+    delay = Math.max(500, delay);
+    this.time.delayedCall(delay, spawnRandomBrick, [], this);
 }
 
 /**

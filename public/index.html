@@ -200,7 +200,12 @@
     <div class="hero">
         <h1>Neon Box Strikers</h1>
         <p>Survive the chaos. Dominate the leaderboard.</p>
-        <a href="/game" class="play-btn">PLAY NOW</a>
+        <div class="btn-group">
+            <a href="/game" class="btn-main">PLAY NOW</a>
+            <button class="btn-main"
+                style="background: transparent; border: 1px solid var(--neon-purple); color: var(--text-color); margin-left: 10px;"
+                onclick="showTutorial()">HOW TO PLAY</button>
+        </div>
     </div>
 
     <div class="leaderboard-container">
@@ -226,7 +231,29 @@
         </table>
     </div>
 
+    <!-- Tutorial Overlay -->
+    <div id="tutorial-overlay"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+        <div
+            style="background: rgba(20, 20, 20, 0.95); border: 1px solid #bc13fe; padding: 40px; border-radius: 15px; max-width: 500px; width: 90%; text-align: center; box-shadow: 0 0 30px rgba(188, 19, 254, 0.4);">
+            <h2 style="color: #00f3ff; font-family: sans-serif; margin-bottom: 20px;">CONTROLS</h2>
+            <div style="text-align: left; color: #fff; font-family: monospace; font-size: 1.1rem; line-height: 2;">
+                <div>⬆️ ARROWS / WASD : Move & Fly</div>
+                <div>💨 SHIFT : Dash (Speed Burst)</div>
+                <div>🔫 ENTER : Shoot</div>
+                <div>⚠️ SURVIVE : Speed increases over time!</div>
+            </div>
+            <button
+                style="margin-top: 30px; background: linear-gradient(90deg, #bc13fe, #00f3ff); border: none; padding: 10px 40px; color: white; font-weight: bold; border-radius: 25px; cursor: pointer;"
+                onclick="document.getElementById('tutorial-overlay').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
     <script>
+        function showTutorial() {
+            document.getElementById('tutorial-overlay').style.display = 'flex';
+        }
+
         async function fetchLeaderboard() {
             try {
                 const response = await fetch('/api/leaderboard');
