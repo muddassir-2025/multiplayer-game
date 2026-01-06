@@ -280,16 +280,29 @@ function spawnBrick() {
     brick.setImmovable(true).body.allowGravity = false;
 
     let chance = Phaser.Math.Between(0, 100);
-    if (chance > 40) {
-        let type = Phaser.Math.RND.pick(itemTypes);
-        let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
-        badGuy.body.allowGravity = true;
-        badGuy.isJumper = (chance > 70); // Jumpers if chance is high
 
-        let item = items.create(spawnX, spawnY - 65, type);
-        item.type = type;
-        item.body.allowGravity = true;
-        item.setBounce(0.3);
+   if (chance > 70) {
+        // --- CASE 1: FIXED ITEM ABOVE BRICK ---
+        let type = Phaser.Math.RND.pick(itemTypes);
+        enemy.create(spawnX, randomY - 20, 'enemy');
+        let item = items.create(spawnX, randomY - 65, type);
+        item.body.allowGravity = false; // Stays on the brick
+        item.type = type;               // Matches the string for collectItem
+    } 
+    else if (chance > 40) {
+        // --- CASE 2: FALLING ITEM AND ENEMY ---
+        let type = Phaser.Math.RND.pick(itemTypes);
+        let badGuy = enemy.create(spawnX, randomY - 45, 'enemy');
+        badGuy.body.allowGravity = true;
+        badGuy.setBounce(0.2);
+
+        let item = items.create(spawnX, randomY - 65, type);
+        
+        // --- FIXES START HERE ---
+        item.body.allowGravity = true;  // 1. Makes the item fall!
+        item.type = type;               // 2. Tells collectItem what this is!
+        item.setBounce(0.3);            // 3. Optional: make it bounce on the ground
+        // -------------------------
     }
 }
 
