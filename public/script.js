@@ -125,10 +125,14 @@ function create() {
             this.time.delayedCall(200, () => player.clearTint());
             if (health <= 0) {
                 this.physics.pause();
-                window.alert("You have been eliminated!");
-                window.location.reload();
+                this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'You have been eliminated!', { fontSize: '32px', fill: '#ff0000' }).setOrigin(0.5).setScrollFactor(0);
             }
         }
+    });
+
+    this.socket.on('gameOver', (data) => {
+        this.physics.pause();
+        showWinnerDashboard.call(this, data.winner);
     });
 
     // 8. COLLISIONS
@@ -139,6 +143,8 @@ function create() {
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
     this.physics.add.collider(this.otherPlayers, ground);
+    this.physics.add.collider(items, ground);
+    this.physics.add.collider(items, bricks);
 
     // PvP Hit Detection
     this.physics.add.overlap(player, this.networkBullets, (p, b) => {
@@ -240,6 +246,20 @@ function update() {
 }
 
 // --- HELPERS ---
+
+function showWinnerDashboard(winner) {
+    const dashboard = this.add.container(this.cameras.main.width / 2, this.cameras.main.height / 2).setScrollFactor(0);
+    const background = this.add.graphics().fillStyle(0x000000, 0.7).fillRect(-200, -150, 400, 300);
+    const winnerText = this.add.text(0, -100, 'Game Over!', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
+    const winnerName = this.add.text(0, -20, `Winner: Player ${winner.playerId}`, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+    const winnerScore = this.add.text(0, 40, `Score: ${winner.score}`, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+    
+    dashboard.add([background, winnerText, winnerName, winnerScore]);
+
+    this.time.delayedCall(5000, () => {
+        window.location.reload();
+    });
+}
 
 function explode(x, y) {
     const ex = this.add.particles(x, y, 'bullet', {
