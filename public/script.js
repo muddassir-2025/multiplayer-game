@@ -125,14 +125,10 @@ function create() {
             this.time.delayedCall(200, () => player.clearTint());
             if (health <= 0) {
                 this.physics.pause();
-                this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'You have been eliminated!', { fontSize: '32px', fill: '#ff0000' }).setOrigin(0.5).setScrollFactor(0);
+                window.alert("You have been eliminated!");
+                window.location.reload();
             }
         }
-    });
-
-    this.socket.on('gameOver', (data) => {
-        this.physics.pause();
-        showWinnerDashboard.call(this, data.winner);
     });
 
     // 8. COLLISIONS
@@ -143,8 +139,6 @@ function create() {
     this.physics.add.collider(enemy, ground);
     this.physics.add.collider(enemy, bricks);
     this.physics.add.collider(this.otherPlayers, ground);
-    this.physics.add.collider(items, ground);
-    this.physics.add.collider(items, bricks);
 
     // PvP Hit Detection
     this.physics.add.overlap(player, this.networkBullets, (p, b) => {
@@ -182,7 +176,8 @@ function create() {
 
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
-    spawnRandomFallingItem.call(this);
+
+    
 }
 
 function update() {
@@ -247,20 +242,6 @@ function update() {
 }
 
 // --- HELPERS ---
-
-function showWinnerDashboard(winner) {
-    const dashboard = this.add.container(this.cameras.main.width / 2, this.cameras.main.height / 2).setScrollFactor(0);
-    const background = this.add.graphics().fillStyle(0x000000, 0.7).fillRect(-200, -150, 400, 300);
-    const winnerText = this.add.text(0, -100, 'Game Over!', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
-    const winnerName = this.add.text(0, -20, `Winner: Player ${winner.playerId}`, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
-    const winnerScore = this.add.text(0, 40, `Score: ${winner.score}`, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
-    
-    dashboard.add([background, winnerText, winnerName, winnerScore]);
-
-    this.time.delayedCall(5000, () => {
-        window.location.reload();
-    });
-}
 
 function explode(x, y) {
     const ex = this.add.particles(x, y, 'bullet', {
@@ -350,21 +331,6 @@ function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
     this.time.delayedCall(Phaser.Math.Between(1000, 4000), spawnRandomBrick, [], this);
-}
-
-function spawnRandomFallingItem() {
-    if (this.physics.world.isPaused) return;
-
-    let type = Phaser.Math.RND.pick(itemTypes);
-    // Spawn at a random x position across the screen, relative to the camera
-    let spawnX = this.cameras.main.scrollX + Phaser.Math.Between(100, 700);
-    
-    // Spawn just above the top of the screen
-    let item = items.create(spawnX, this.cameras.main.scrollY, type);
-    item.setBounce(0.5);
-    item.type = type;
-    
-    this.time.delayedCall(Phaser.Math.Between(3000, 7000), spawnRandomFallingItem, [], this);
 }
 
 function cleanupObjects() {
