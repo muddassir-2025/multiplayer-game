@@ -381,10 +381,10 @@ function update() {
     }
 
     // 2. Trigger the Blast (Wave -> Slow Motion -> Destroy)
-    if (Phaser.Input.Keyboard.JustDown(zerokey) && bullets >= 5) {
+    if (Phaser.Input.Keyboard.JustDown(zerokey) && bullets >= 10) {
         isblast = true;
         blastTimer = 40; // Increased timer because slow-mo lasts longer
-        bullets -= 5;
+        bullets -= 10;
 
         // --- SLOW MOTION ---
         this.time.timeScale = 0.2; // Game moves at 20% speed
@@ -613,9 +613,9 @@ function addOtherPlayer(playerInfo) {
  * Item collection logic.
  */
 function collectItem(player, item) {
-    if (item.type === 'jetpack') flytime = Math.min(flytime + 200, 1000);
+    if (item.type === 'jetpack') flytime = Math.min(flytime + 250, 1000);
     else if (item.type === 'gun') bullets = Math.min(bullets + 10, 30);
-    else if (item.type === 'health') health = Math.min(health + 20, 100);
+    else if (item.type === 'health') health = Math.min(health + 25, 100);
     item.destroy();
 }
 
