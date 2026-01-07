@@ -3,6 +3,7 @@
  */
 const config = {
     type: Phaser.AUTO,
+
     scale: {
         mode: Phaser.Scale.FIT, // Stretches to fit
         autoCenter: Phaser.Scale.CENTER_BOTH, // Centers game on screen
@@ -35,7 +36,10 @@ let lastDash = 0;
 let comboCount = 0;
 let comboTimer = 0;
 let shiftKey;
+let zerokey;
 let isDashing = false;
+let isblast = false;
+let blastTimer = 0;
 let dashTimer = 0;
 
 // Hard Mode Variables
@@ -57,16 +61,21 @@ let itemTypes = ['jetpack', 'gun', 'health'];
 function preload() {
     this.load.image('box', 'assets/1box.png');
     this.load.image('ground', 'assets/ground.png');
-    this.load.image('bg', 'assets/bg.png');
+    this.load.image('bg', 'assets/bg1.png');
     this.load.image('jetpack', 'assets/jetpack.png');
     this.load.image('gun', 'assets/gun.png');
     this.load.image('health', 'assets/health.png');
     this.load.image('bullet', 'assets/bullet.png');
     this.load.image('enemy', 'assets/enemy.png');
+    this.load.image('gear', 'assets/gear.png');
+
 
     // Load dynamic variations
     spikeTypes.forEach(s => this.load.image(s, `assets/${s}.png`));
     brickTypes.forEach(b => this.load.image(b, `assets/${b}.png`));
+
+    // Verse: inside preload()
+    this.load.image('ghost', 'assets/enemy2.png');
 }
 
 /**
@@ -84,6 +93,7 @@ function create() {
 
     // 2. BACKGROUND & WORLD (Parallax setup)
     this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
+    this.bg.setTint(0xbbbbbb); //light grey that dims it slightly
 
     // Ground
     ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
@@ -113,6 +123,7 @@ function create() {
     spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    zerokey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO);;
 
     // 6. OBJECT GROUPS
     spikes = this.physics.add.group();
@@ -120,6 +131,8 @@ function create() {
     items = this.physics.add.group();
     enemy = this.physics.add.group();
     bulletGroup = this.physics.add.group();
+    geargroup = this.physics.add.group();
+
 
     // 7. SOCKET LISTENERS (Handling Server Events)
     this.socket.on('currentPlayers', (players) => {
@@ -154,6 +167,7 @@ function create() {
             b.setTint(0xffaa00); // Plasma Fire Orange
             b.ownerId = data.ownerId;
 
+
             // Heavy Boost Trail
             const trail = this.add.particles(0, 0, 'bullet', {
                 speed: 100, scale: { start: 0.4, end: 0 },
@@ -184,9 +198,12 @@ function create() {
 
     // 8. COLLISIONS & OVERLAPS
     this.physics.add.collider(player, spikes, hitspike, null, this);
+    this.physics.add.collider(player, geargroup, hitspike, null, this);
+    this.physics.add.collider(player, spawnghost, hitspike, null, this);
     this.physics.add.collider(player, enemy, hitspike, null, this);
     this.physics.add.collider(player, bricks);
     this.physics.add.overlap(player, items, collectItem, null, this);
+    this.physics.add.collider(player, geargroup);
 
     // Environmental collisions
     this.physics.add.collider(enemy, ground);
@@ -229,6 +246,7 @@ function create() {
     // Initial Spawning
     spawnRandomSpike.call(this);
     spawnRandomBrick.call(this);
+    spawnRandomgear.call(this);
 
     // --- MOBILE CONTROLS ---
 
@@ -250,7 +268,7 @@ function create() {
     // Update the Flying Logic
     if ((cursors.up.isDown || this.isMobileJumping) && flytime > 0) {
         player.setVelocityY(-300);
-        flytime -= 2;
+        flytime -= 1.8;
         player.setAngle(-15);
         this.cameras.main.zoomTo(0.7, 1000);
     } else {
@@ -263,6 +281,15 @@ function create() {
         player.setVelocityY(-500);
         player.setAngularVelocity(300);
     }
+
+    // Verse: inside create()
+    ghosts = this.physics.add.group();
+
+    // If ghosts hurt the player like spikes:
+    this.physics.add.overlap(player, ghosts, hitspike, null, this);
+
+    // Start the spawning loop
+    spawnRandomGhost.call(this);
 
 }
 
@@ -281,7 +308,7 @@ function update() {
     // Movement: Jetpack Logic
     if (cursors.up.isDown && flytime > 0) {
         player.setVelocityY(-300);
-        flytime -= 2;
+        flytime -= 1.8;
         player.setAngle(-15);
         this.cameras.main.zoomTo(0.7, 1000);
     } else {
@@ -300,7 +327,7 @@ function update() {
     if (difficultyTimer > 600) {
         difficultyTimer = 0;
         difficultyLevel++;
-        baseSpeed += 40; // Ramps up speed significantly
+        baseSpeed += 30; // Ramps up speed significantly
 
         // Visual indicator
         showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
@@ -340,6 +367,71 @@ function update() {
         }
     }
 
+    //isblast
+    // 1. Handle Blast Timer Countdown (Updated for Slow Motion)
+    if (isblast) {
+        blastTimer--;
+        // Maintain high velocity even during slow-mo to feel powerful
+        player.setVelocityX(baseSpeed + 2500);
+
+        if (blastTimer <= 0) {
+            isblast = false;
+            this.time.timeScale = 1; // Restore normal game speed
+        }
+    }
+
+    // 2. Trigger the Blast (Wave -> Slow Motion -> Destroy)
+    if (Phaser.Input.Keyboard.JustDown(zerokey) && bullets >= 5) {
+        isblast = true;
+        blastTimer = 40; // Increased timer because slow-mo lasts longer
+        bullets -= 5;
+
+        // --- SLOW MOTION ---
+        this.time.timeScale = 0.2; // Game moves at 20% speed
+        this.cameras.main.shake(500, 0.03);
+        this.cameras.main.flash(200, 255, 255, 255); // White flash for impact
+
+        // --- THE WAVE VISUAL ---
+        const wave = this.add.circle(player.x, player.y, 10, 0xffffff, 0.5);
+        this.tweens.add({
+            targets: wave,
+            radius: 600, // Grows to cover screen
+            alpha: 0,
+            duration: 400,
+            onComplete: () => wave.destroy()
+        });
+
+        // --- DELAYED DESTRUCTION (The "Shatter" feel) ---
+        // We wait a few milliseconds in "real time" so the player sees the wave hit
+        const groupsToClear = [spikes, bricks, enemy, ghosts, geargroup];
+
+        groupsToClear.forEach(group => {
+            if (group) {
+                group.getChildren().forEach((child) => {
+                    // Add a small individual delay for a "chain reaction" effect
+                    this.time.delayedCall(Math.random() * 200, () => {
+                        if (child.active) {
+                            // Optional: Add a tiny explosion per enemy
+                            // this.add.particles(child.x, child.y, 'box', {...});
+                            child.destroy();
+                        }
+                    });
+                });
+            }
+        });
+
+        // Particle Wave Trail
+        const dashWave = this.add.particles(-200, -10, 'box', {
+            speedX: { min: 600, max: 800 },
+            scale: { start: 0.5, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 800,
+            follow: player
+        });
+        
+        this.time.delayedCall(1000, () => dashWave.destroy());
+    }
+
     // Combat: Shooting
     if (Phaser.Input.Keyboard.JustDown(enterKey) && bullets > 0) {
         fireBullet.call(this);
@@ -357,7 +449,7 @@ function update() {
             badGuy.setVelocityY(-400);
         }
         let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
-        if (distance < 400) {
+        if (distance < 450) {
             badGuy.setVelocityX(-100);
             badGuy.setTint(0xff0000);
         }
@@ -392,6 +484,13 @@ function update() {
 
     // Update Difficulty UI
     document.getElementById('difficulty-display').innerText = 'DANGER LEVEL: ' + difficultyLevel;
+
+    // Verse: inside update()
+    ghosts.getChildren().forEach(ghost => {
+        // Math.sin creates a smooth up-and-down wave
+        ghost.y = ghost.startY + Math.sin(this.time.now / 200 * ghost.wobbleSpeed) * 50;
+    });
+
 }
 
 // --- HELPERS ---
@@ -544,7 +643,7 @@ function spawnRandomBrick() {
  * Memory Management: Removes objects that have scrolled off-screen.
  */
 function cleanupObjects() {
-    [spikes, bricks, items, enemy, bulletGroup, this.networkBullets].forEach(group => {
+    [spikes, bricks, items, enemy, bulletGroup, geargroup, this.networkBullets].forEach(group => {
         if (!group) return;
         group.getChildren().forEach(child => {
             if (child.x < this.cameras.main.scrollX - 150) child.destroy();
@@ -594,3 +693,80 @@ function showGameOverModal(finalScore) {
         });
     };
 }
+
+// Verse: bottom of script
+function spawngear() {
+    // 1. Check if the group exists to prevent crashes
+    if (!geargroup) return;
+
+    let spawnX = this.cameras.main.scrollX + 1000;
+    let spawnY = Phaser.Math.Between(70, 480);
+
+    // 2. FIXED: Use 'geargroup', and name the individual sprite 'newGear'
+    let newGear = geargroup.create(spawnX, spawnY, 'gear');
+
+    if (newGear) {
+        newGear.setImmovable(true);
+        newGear.body.allowGravity = false;
+        // Optional: Make it spin so it looks like a gear
+        newGear.setAngularVelocity(100);
+    }
+
+    // 🔽 REDUCE HITBOX (padding)
+    newGear.body.setSize(
+        newGear.width * 0.6,
+        newGear.height * 0.6
+    );
+
+    // 🔽 CENTER THE SMALLER HITBOX
+    newGear.body.setOffset(
+        newGear.width * 0.2,
+        newGear.height * 0.2
+    );
+}
+
+function spawnRandomgear() {
+    if (this.physics.world.isPaused) return;
+
+    // 3. FIXED: Call the correct function name
+    spawngear.call(this);
+
+    let delay = Phaser.Math.Between(5000, 9000) - (difficultyLevel * 100);
+    delay = Math.max(2000, delay); // Don't let it spawn too fast
+
+    this.time.delayedCall(delay, spawnRandomgear, [], this);
+}
+
+// Verse: bottom of script
+function spawnghost() {
+    if (!ghosts) return;
+
+    let spawnX = this.cameras.main.scrollX + 1000;
+    // Ghosts can spawn anywhere since they fly!
+    let spawnY = Phaser.Math.Between(50, 500);
+
+    let ghost = ghosts.create(spawnX, spawnY, 'ghost');
+
+    if (ghost) {
+        ghost.body.allowGravity = false;
+        ghost.setTint(0x88ffff); // Give them a ghostly blue/transparent glow
+        ghost.setAlpha(0.7);
+
+        // Give the ghost a unique property for its movement
+        ghost.startY = spawnY;
+        ghost.wobbleSpeed = Phaser.Math.Between(1, 2);
+
+        // Move left toward the player
+        ghost.setVelocityX(Phaser.Math.Between(-100, -200));
+    }
+}
+
+function spawnRandomGhost() {
+    if (this.physics.world.isPaused || !player) return;
+
+    spawnghost.call(this);
+
+    let delay = Phaser.Math.Between(9000, 18000) - (difficultyLevel * 100);
+    this.time.delayedCall(Math.max(5000, delay), spawnRandomGhost, [], this);
+}
+
