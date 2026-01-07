@@ -68,6 +68,8 @@ function preload() {
     this.load.image('bullet', 'assets/bullet.png');
     this.load.image('enemy', 'assets/enemy.png');
     this.load.image('gear', 'assets/gear.png');
+     this.load.image('plasma', 'assets/plasma.png');
+   // this.load.audio('levelTheme', 'assets//bg.aac');
 
 
     // Load dynamic variations
@@ -83,6 +85,15 @@ function preload() {
  */
 function create() {
     this.socket = io();
+
+    // // Initialize the music
+    // this.music = this.sound.add('levelTheme', {
+    //     volume: 0.2,
+    //     loop: true
+    // });
+
+    // Start playing
+    //this.music.play();
 
     // 1. MULTIPLAYER GROUPS (Other players and their bullets)
     this.otherPlayers = this.physics.add.group();
@@ -421,7 +432,7 @@ function update() {
         });
 
         // Particle Wave Trail
-        const dashWave = this.add.particles(-200, -10, 'box', {
+        const dashWave = this.add.particles(-200, -10, 'plasma', {
             speedX: { min: 600, max: 800 },
             scale: { start: 0.5, end: 0 },
             alpha: { start: 1, end: 0 },
