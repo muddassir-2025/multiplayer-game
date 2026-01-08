@@ -671,23 +671,30 @@ function spawnBrick() {
 
     let chance = Phaser.Math.Between(0, 100);
 
-    if (chance > 60) {
+    // Only spawn enemies/items 20% of the time (if chance is 80-100)
+    if (chance > 70) { 
         let type = Phaser.Math.RND.pick(itemTypes);
-        enemy.create(spawnX, spawnY - 20, 'enemy');
-        let item = items.create(spawnX, spawnY - 65, type);
-        item.body.allowGravity = false;
-        item.type = type;
-    }
-    else if (chance > 40) {
-        let type = Phaser.Math.RND.pick(itemTypes);
-        let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
-        badGuy.body.allowGravity = true;
-        badGuy.setBounce(0.2);
+        
+        // Decide if this enemy/item pair is floating or has gravity
+        let isFloating = Phaser.Math.Between(0, 1) === 0;
 
-        let item = items.create(spawnX, spawnY - 65, type);
-        item.body.allowGravity = true;
-        item.type = type;
-        item.setBounce(0.3);
+        if (isFloating) {
+            // Option A: Floating setup
+            enemy.create(spawnX, spawnY - 20, 'enemy');
+            let item = items.create(spawnX, spawnY - 65, type);
+            item.body.allowGravity = false;
+            item.type = type;
+        } else {
+            // Option B: Physics/Gravity setup
+            let badGuy = enemy.create(spawnX, spawnY - 45, 'enemy');
+            badGuy.body.allowGravity = true;
+            badGuy.setBounce(0.2);
+
+            let item = items.create(spawnX, spawnY - 65, type);
+            item.body.allowGravity = true;
+            item.setBounce(0.3);
+            item.type = type;
+        }
     }
 }
 
