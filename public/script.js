@@ -520,13 +520,13 @@ if (!player.body.touching.down && !player.body.blocked.down) {
     // --- ENEMY AI ---
     enemy.getChildren().forEach(badGuy => {
         if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
-            badGuy.setVelocityY(-400);
+            badGuy.setVelocityY(-350);
         }
         let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
-        if (distance < 450) {
+        if (distance < 500) {
             badGuy.setVelocityX(-100);
             badGuy.setTint(0xff0000);
-        } else if (distance > 400) {
+        } else if (distance > 500) {
             badGuy.setVelocityX(100);
             badGuy.setTint(0xff0000);
         }
@@ -595,7 +595,7 @@ function fireBullet() {
     angles.forEach(vy => {
         const b = bulletGroup.create(player.x + 20, player.y, 'bullet');
         b.body.allowGravity = false;
-        b.setVelocity(900, vy);
+        b.setVelocity(1500, vy);
         b.setTint(0xffaa00); // Plasma Fire Orange
 
         // Heavy Boost Trail
@@ -612,7 +612,7 @@ function fireBullet() {
         });
 
         this.socket.emit('playerShoots', {
-            x: b.x, y: b.y, velocityX: 900, velocityY: vy, ownerId: this.socket.id
+            x: b.x, y: b.y, velocityX: 1500, velocityY: vy, ownerId: this.socket.id
         });
     });
 }
@@ -656,14 +656,14 @@ function hitspike(player, spike) {
  */
 function spawnBrick() {
     let key = Phaser.Math.RND.pick(brickTypes);
-    let spawnX = this.cameras.main.scrollX + 900;
+    let spawnX = this.cameras.main.scrollX + 1500;
     let spawnY = Phaser.Math.Between(150, 400);
     let brick = bricks.create(spawnX, spawnY, key);
     brick.setImmovable(true).body.allowGravity = false;
 
     let chance = Phaser.Math.Between(0, 100);
 
-    if (chance > 70) {
+    if (chance > 60) {
         let type = Phaser.Math.RND.pick(itemTypes);
         enemy.create(spawnX, spawnY - 20, 'enemy');
         let item = items.create(spawnX, spawnY - 65, type);
@@ -706,12 +706,23 @@ function collectItem(player, item) {
 // Infinite recursive spawning loops
 function spawnRandomSpike() {
     if (this.physics.world.isPaused) return;
-    let spawnX = this.cameras.main.scrollX + 900;
-    let spike = spikes.create(spawnX, 550, Phaser.Math.RND.pick(spikeTypes));
-    spike.setImmovable(true).body.allowGravity = false;
-    // Hard Mode: Spawn faster as difficulty increases
+
+    // Spawn 1000 pixels ahead of the camera so it doesn't pop in visibly
+    let spawnX = this.cameras.main.scrollX + 1500;
+    // Calculate the top of the ground (Ground Y - half its height)
+    // If ground is at 700 and 32px tall, top is 684
+    let groundTop = ground.y - (ground.displayHeight / 2);
+    let spike = spikes.create(spawnX, groundTop, Phaser.Math.RND.pick(spikeTypes));
+    // IMPORTANT: Set origin to the bottom (1) so it sits ON the groundTop
+    spike.setOrigin(0.5, 1);
+    // Physics setup
+    spike.setImmovable(true);
+    spike.body.allowGravity = false;
+    // Refresh the physics body to match the new origin/position
+    spike.body.updateFromGameObject();
+    // Difficulty scaling
     let delay = Phaser.Math.Between(1500, 4000) - (difficultyLevel * 100);
-    delay = Math.max(500, delay); // Cap at 500ms
+    delay = Math.max(500, delay);
     this.time.delayedCall(delay, spawnRandomSpike, [], this);
 }
 
@@ -783,7 +794,7 @@ function spawngear() {
     // 1. Check if the group exists to prevent crashes
     if (!geargroup) return;
 
-    let spawnX = this.cameras.main.scrollX + 1000;
+    let spawnX = this.cameras.main.scrollX + 1500;
     let spawnY = Phaser.Math.Between(70, 480);
 
     // 2. FIXED: Use 'geargroup', and name the individual sprite 'newGear'
@@ -825,7 +836,7 @@ function spawnRandomgear() {
 function spawnghost() {
     if (!ghosts) return;
 
-    let spawnX = this.cameras.main.scrollX + 1000;
+    let spawnX = this.cameras.main.scrollX + 1500;
     // Ghosts can spawn anywhere since they fly!
     let spawnY = Phaser.Math.Between(50, 500);
 
