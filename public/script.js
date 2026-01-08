@@ -416,10 +416,10 @@ if (!player.body.touching.down && !player.body.blocked.down) {
 
     // --- DIFFICULTY SCALING ---
     difficultyTimer++;
-    if (difficultyTimer > 600) {
+    if (difficultyTimer > 5000) {
         difficultyTimer = 0;
         difficultyLevel++;
-        baseSpeed += 30;
+        baseSpeed += 10;
         showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
     }
 
@@ -665,14 +665,14 @@ function hitspike(player, spike) {
 function spawnBrick() {
     let key = Phaser.Math.RND.pick(brickTypes);
     let spawnX = this.cameras.main.scrollX + 1500;
-    let spawnY = Phaser.Math.Between(150, 355);
+    let spawnY = Phaser.Math.Between(140, 360);
     let brick = bricks.create(spawnX, spawnY, key);
     brick.setImmovable(true).body.allowGravity = false;
 
     let chance = Phaser.Math.Between(0, 100);
 
-    // Only spawn enemies/items 20% of the time (if chance is 80-100)
-    if (chance > 70) { 
+    // Only spawn enemies/items 40% of the time (if chance is 80-100)
+    if (chance > 60) { 
         let type = Phaser.Math.RND.pick(itemTypes);
         
         // Decide if this enemy/item pair is floating or has gravity
@@ -853,7 +853,7 @@ function spawnghost() {
 
     let spawnX = this.cameras.main.scrollX + 1500;
     // Ghosts can spawn anywhere since they fly!
-    let spawnY = Phaser.Math.Between(50, 380);
+    let spawnY = Phaser.Math.Between(45, 380);
 
     let ghost = ghosts.create(spawnX, spawnY, 'ghost');
 
