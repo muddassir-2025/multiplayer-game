@@ -23,8 +23,9 @@ const game = new Phaser.Game(config);
 let player, cursors, spaceKey, enterKey, ground;
 let score = 0;
 let bullets = 10;
-let health = 100;
-let flytime = 1000;
+let health = 150;
+let flytime = 1200;
+let isInvincible = false;
 
 // Groups for object pooling and collision management
 
@@ -68,8 +69,8 @@ function preload() {
     this.load.image('bullet', 'assets/bullet.png');
     this.load.image('enemy', 'assets/enemy.png');
     this.load.image('gear', 'assets/gear.png');
-     this.load.image('plasma', 'assets/plasma.png');
-   // this.load.audio('levelTheme', 'assets//bg.aac');
+    this.load.image('plasma', 'assets/plasma.png');
+    this.load.audio('levelTheme', 'assets/bg.aac');
 
 
     // Load dynamic variations
@@ -86,14 +87,14 @@ function preload() {
 function create() {
     this.socket = io();
 
-    // // Initialize the music
-    // this.music = this.sound.add('levelTheme', {
-    //     volume: 0.2,
-    //     loop: true
-    // });
+    // Initialize the music
+    this.music = this.sound.add('levelTheme', {
+        volume: 0.4,
+        loop: true
+    });
 
-    // Start playing
-    //this.music.play();
+    //Start playing
+    this.music.play();
 
     // 1. MULTIPLAYER GROUPS (Other players and their bullets)
     this.otherPlayers = this.physics.add.group();
@@ -237,12 +238,19 @@ function create() {
         bullet.destroy();
         enmy.destroy();
     });
-
+    
     this.physics.add.collider(bulletGroup, spikes, (bullet, s) => {
         explode.call(this, s.x, s.y);
         bullet.destroy();
         s.destroy();
     });
+
+    // Bullet vs Gears
+this.physics.add.collider(bulletGroup, geargroup, (bullet, gear) => {
+    explode.call(this, gear.x, gear.y); // Trigger the explosion effect
+    bullet.destroy();                   // Remove the bullet
+    gear.destroy();                     // Remove the gear
+});
 
     // 9. UI & PARTICLES
     // Phaser Text UI Removed in favor of DOM UI
@@ -259,39 +267,67 @@ function create() {
     spawnRandomBrick.call(this);
     spawnRandomgear.call(this);
 
-    // --- MOBILE CONTROLS ---
 
-    // Left half of screen = Fly/Jump
-    this.jumpZone = this.add.zone(0, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+    // --- MOBILE CONTROLS (ENHANCED) ---
 
-    // Right half of screen = Shoot
-    this.shootZone = this.add.zone(400, 0, 400, 600).setOrigin(0).setInteractive().setScrollFactor(0);
+    // 1. JOYSTICK SETUP (Left Side)
+    const joystickBase = this.add.circle(100, 500, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
+    const joystickThumb = this.add.circle(100, 500, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
 
-    // Logic for Jump/Fly
-    this.jumpZone.on('pointerdown', () => { this.isMobileJumping = true; });
-    this.jumpZone.on('pointerup', () => { this.isMobileJumping = false; });
+    this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
 
-    // Logic for Shooting
-    this.shootZone.on('pointerdown', () => {
-        if (bullets > 0) fireBullet.call(this);
+    this.input.on('pointerdown', (pointer) => {
+        // Only activate joystick if touching the left side of screen
+        if (pointer.x < 400) {
+            this.joystickData.dragging = true;
+            joystickBase.setPosition(pointer.x, pointer.y);
+            joystickThumb.setPosition(pointer.x, pointer.y);
+        }
     });
 
-    // Update the Flying Logic
-    if ((cursors.up.isDown || this.isMobileJumping) && flytime > 0) {
-        player.setVelocityY(-300);
-        flytime -= 1.8;
-        player.setAngle(-15);
-        this.cameras.main.zoomTo(0.7, 1000);
-    } else {
-        this.cameras.main.zoomTo(1, 1000);
-        player.setAngle(0);
-    }
+    this.input.on('pointermove', (pointer) => {
+        if (this.joystickData.dragging) {
+            const dist = Phaser.Math.Distance.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+            const angle = Phaser.Math.Angle.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+            const maxDist = 60;
 
-    // Update the Jumping Logic
-    if ((Phaser.Input.Keyboard.JustDown(spaceKey) || (this.isMobileJumping && player.body.touching.down)) && player.body.touching.down) {
-        player.setVelocityY(-500);
-        player.setAngularVelocity(300);
-    }
+            const clampedDist = Math.min(dist, maxDist);
+            joystickThumb.x = joystickBase.x + Math.cos(angle) * clampedDist;
+            joystickThumb.y = joystickBase.y + Math.sin(angle) * clampedDist;
+
+            // Export forces for the update loop (-1 to 1)
+            this.joystickData.forceX = (joystickThumb.x - joystickBase.x) / maxDist;
+            this.joystickData.forceY = (joystickThumb.y - joystickBase.y) / maxDist;
+        }
+    });
+
+    this.input.on('pointerup', () => {
+        this.joystickData.dragging = false;
+        this.joystickData.forceX = 0;
+        this.joystickData.forceY = 0;
+        // Reset positions to default corner
+        joystickBase.setPosition(100, 500);
+        joystickThumb.setPosition(100, 500);
+    });
+
+    // 2. ACTION BUTTONS (Right Side)
+    // Shoot Button
+    const shootBtn = this.add.circle(700, 500, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(700, 500, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+
+    shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
+
+    // Dash Button (Shift)
+    const dashBtn = this.add.circle(700, 400, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(700, 400, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+
+    dashBtn.on('pointerdown', () => { this.isMobileDashing = true; }); // Handled in update
+
+    // Blast Button (Zero)
+    const blastBtn = this.add.circle(600, 530, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(600, 530, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+
+    blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; }); // Handled in update
 
     // Verse: inside create()
     ghosts = this.physics.add.group();
@@ -302,6 +338,86 @@ function create() {
     // Start the spawning loop
     spawnRandomGhost.call(this);
 
+   // 1. First, make sure your buttons are assigned to variables (if not already)
+this.mobileButtons = [shootBtn, dashBtn, blastBtn];
+
+// 2. Add the Global Pointer Listener
+
+// --- IMPROVED MULTI-TOUCH MOBILE CONTROLS ---
+// --- MOBILE CONTROLS (ENHANCED) ---
+
+// Only create these if NOT on desktop
+if (!this.sys.game.device.os.desktop) {
+
+    // 1. JOYSTICK SETUP
+    const joystickBase = this.add.circle(100, 500, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
+    const joystickThumb = this.add.circle(100, 500, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
+
+    this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
+
+    this.input.on('pointerdown', (pointer) => {
+        if (pointer.x < 400) {
+            this.joystickData.dragging = true;
+            joystickBase.setPosition(pointer.x, pointer.y);
+            joystickThumb.setPosition(pointer.x, pointer.y);
+        }
+    });
+
+    this.input.on('pointermove', (pointer) => {
+        if (this.joystickData.dragging) {
+            const dist = Phaser.Math.Distance.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+            const angle = Phaser.Math.Angle.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+            const maxDist = 60;
+            const clampedDist = Math.min(dist, maxDist);
+            joystickThumb.x = joystickBase.x + Math.cos(angle) * clampedDist;
+            joystickThumb.y = joystickBase.y + Math.sin(angle) * clampedDist;
+            this.joystickData.forceX = (joystickThumb.x - joystickBase.x) / maxDist;
+            this.joystickData.forceY = (joystickThumb.y - joystickBase.y) / maxDist;
+        }
+    });
+
+    this.input.on('pointerup', () => {
+        this.joystickData.dragging = false;
+        this.joystickData.forceX = 0;
+        this.joystickData.forceY = 0;
+        joystickBase.setPosition(100, 500);
+        joystickThumb.setPosition(100, 500);
+    });
+
+    // 2. ACTION BUTTONS
+    const shootBtn = this.add.circle(700, 500, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(700, 500, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
+
+    const dashBtn = this.add.circle(700, 400, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(700, 400, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    dashBtn.on('pointerdown', () => { this.isMobileDashing = true; });
+
+    const blastBtn = this.add.circle(600, 530, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(600, 530, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; });
+
+    this.mobileButtons = [shootBtn, dashBtn, blastBtn];
+
+    // Multi-touch for Jump
+    this.input.addPointer(2); 
+    this.input.on('pointerdown', (pointer) => {
+        const distToJoystick = Phaser.Math.Distance.Between(pointer.x, pointer.y, joystickBase.x, joystickBase.y);
+        const overButton = this.mobileButtons.some(btn => Phaser.Math.Distance.Between(pointer.x, pointer.y, btn.x, btn.y) < 60);
+
+        if (distToJoystick > 100 && !overButton) {
+            if (player.body.touching.down || player.body.blocked.down) {
+                player.setVelocityY(-550);
+                player.setAngularVelocity(300);
+            } else {
+                this.isMobileJumping = true; 
+            }
+        }
+    });
+
+    this.input.on('pointerup', () => { this.isMobileJumping = false; });
+}
+
 }
 
 /**
@@ -310,16 +426,19 @@ function create() {
 function update() {
     if (this.physics.world.isPaused || !player) return;
 
-    // Background scrolling
+    // --- BACKGROUND SCROLLING ---
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.3;
     ground.x = this.cameras.main.scrollX + 400;
     ground.body.x = this.cameras.main.scrollX;
     ground.tilePositionX = this.cameras.main.scrollX;
 
-    // Movement: Jetpack Logic
-    if (cursors.up.isDown && flytime > 0) {
+    // --- MOVEMENT: JETPACK & JUMP LOGIC (Keyboard + Mobile Joystick) ---
+    // Check if moving up: Up Arrow OR Joystick pushed significantly up
+    let isMovingUp = cursors.up.isDown || (this.joystickData && this.joystickData.forceY < -0.3);
+
+    if (isMovingUp && flytime > 0) {
         player.setVelocityY(-300);
-        flytime -= 1.8;
+        flytime -= 1;
         player.setAngle(-15);
         this.cameras.main.zoomTo(0.7, 1000);
     } else {
@@ -327,45 +446,55 @@ function update() {
         player.setAngle(0);
     }
 
-    // Movement: Ground Jump
-    if (Phaser.Input.Keyboard.JustDown(spaceKey) && player.body.touching.down) {
-        player.setVelocityY(-500);
-        player.setAngularVelocity(300);
-    }
+// --- MOVEMENT: GROUND JUMP (Fixed for High Speed) ---
+// We check for: Spacebar OR the Mobile Tap Flag OR Joystick pushed hard Up
+let wantsToJump = Phaser.Input.Keyboard.JustDown(spaceKey) || this.isMobileJumping;
 
-    // Difficulty Scaling (Every ~10 seconds @ 60fps)
+// Add Joystick 'Up' to the jump trigger if touching ground
+if (this.joystickData && this.joystickData.forceY < -0.7) {
+    wantsToJump = true;
+}
+
+if (wantsToJump && (player.body.touching.down || player.body.blocked.down)) {
+    player.setVelocityY(-550); // Increased slightly for better feel at high speeds
+    player.setAngularVelocity(300);
+    
+    // IMPORTANT: Reset the flag so we don't 'double jump' accidentally
+    this.isMobileJumping = false; 
+}
+
+// Safety: If we aren't touching the ground, clear the jump flag 
+// so it doesn't 'wait' until we land to jump.
+if (!player.body.touching.down && !player.body.blocked.down) {
+    this.isMobileJumping = false;
+}
+
+    // --- DIFFICULTY SCALING ---
     difficultyTimer++;
     if (difficultyTimer > 600) {
         difficultyTimer = 0;
         difficultyLevel++;
-        baseSpeed += 30; // Ramps up speed significantly
-
-        // Visual indicator
+        baseSpeed += 30;
         showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
-
-        // Cap fuel regen or increase consumption?
-        // For now just speed is enough chaos
     }
 
-    // Movement Logic
+    // --- DASH LOGIC (Keyboard + Mobile Button) ---
+    let wantsToDash = Phaser.Input.Keyboard.JustDown(shiftKey) || this.isMobileDashing;
+
     if (isDashing) {
-        // LOCK movement during dash
         dashTimer--;
         if (dashTimer <= 0) {
             isDashing = false;
-            player.setVelocityX(baseSpeed); // Reset to normal speed
+            player.setVelocityX(baseSpeed);
         }
     } else {
-        // Normal Movement
-
-        // Skill: Dash (Shift Key) - Costs 200 Fuel
-        if (Phaser.Input.Keyboard.JustDown(shiftKey) && flytime >= 200) {
+        if (wantsToDash && flytime >= 100) {
+            this.isMobileDashing = false; // Reset mobile flag
             isDashing = true;
-            dashTimer = 20; // Dash lasts ~330ms (20 frames)
-            player.setVelocityX(baseSpeed + 1500); // SUPER FAST
-            flytime -= 200;
+            dashTimer = 20; 
+            player.setVelocityX(baseSpeed + 1500);
+            flytime -= 100;
 
-            // Dash Effects
             this.cameras.main.shake(200, 0.02);
             const dashParticles = this.add.particles(player.x, player.y, 'box', {
                 speed: 100, scale: { start: 0.1, end: 0 },
@@ -374,64 +503,54 @@ function update() {
             });
             this.time.delayedCall(500, () => dashParticles.destroy());
         } else {
-            player.setVelocityX(cursors.right.isDown ? baseSpeed + manualBoost : baseSpeed);
+            // Horizontal speed: Right Arrow OR Joystick pushed right
+            let isMovingRight = cursors.right.isDown || (this.joystickData && this.joystickData.forceX > 0.3);
+            player.setVelocityX(isMovingRight ? baseSpeed + manualBoost : baseSpeed);
         }
     }
 
-    //isblast
-    // 1. Handle Blast Timer Countdown (Updated for Slow Motion)
+    // --- BLAST LOGIC (Keyboard + Mobile Button) ---
+    let wantsToBlast = Phaser.Input.Keyboard.JustDown(zerokey) || this.isMobileBlasting;
+
     if (isblast) {
         blastTimer--;
-        // Maintain high velocity even during slow-mo to feel powerful
         player.setVelocityX(baseSpeed + 2500);
-
         if (blastTimer <= 0) {
             isblast = false;
-            this.time.timeScale = 1; // Restore normal game speed
+            this.time.timeScale = 1;
         }
     }
 
-    // 2. Trigger the Blast (Wave -> Slow Motion -> Destroy)
-    if (Phaser.Input.Keyboard.JustDown(zerokey) && bullets >= 10) {
+    if (wantsToBlast && bullets >= 10 && !isblast) {
+        this.isMobileBlasting = false; // Reset mobile flag
         isblast = true;
-        blastTimer = 40; // Increased timer because slow-mo lasts longer
+        blastTimer = 40;
         bullets -= 10;
 
-        // --- SLOW MOTION ---
-        this.time.timeScale = 0.2; // Game moves at 20% speed
+        this.time.timeScale = 0.2;
         this.cameras.main.shake(500, 0.03);
-        this.cameras.main.flash(200, 255, 255, 255); // White flash for impact
+        this.cameras.main.flash(200, 255, 255, 255);
 
-        // --- THE WAVE VISUAL ---
         const wave = this.add.circle(player.x, player.y, 10, 0xffffff, 0.5);
         this.tweens.add({
             targets: wave,
-            radius: 600, // Grows to cover screen
+            radius: 600,
             alpha: 0,
             duration: 400,
             onComplete: () => wave.destroy()
         });
 
-        // --- DELAYED DESTRUCTION (The "Shatter" feel) ---
-        // We wait a few milliseconds in "real time" so the player sees the wave hit
         const groupsToClear = [spikes, bricks, enemy, ghosts, geargroup];
-
         groupsToClear.forEach(group => {
             if (group) {
                 group.getChildren().forEach((child) => {
-                    // Add a small individual delay for a "chain reaction" effect
                     this.time.delayedCall(Math.random() * 200, () => {
-                        if (child.active) {
-                            // Optional: Add a tiny explosion per enemy
-                            // this.add.particles(child.x, child.y, 'box', {...});
-                            child.destroy();
-                        }
+                        if (child.active) child.destroy();
                     });
                 });
             }
         });
 
-        // Particle Wave Trail
         const dashWave = this.add.particles(-200, -10, 'plasma', {
             speedX: { min: 600, max: 800 },
             scale: { start: 0.5, end: 0 },
@@ -439,22 +558,21 @@ function update() {
             lifespan: 800,
             follow: player
         });
-        
         this.time.delayedCall(1000, () => dashWave.destroy());
     }
 
-    // Combat: Shooting
+    // --- COMBAT: SHOOTING ---
     if (Phaser.Input.Keyboard.JustDown(enterKey) && bullets > 0) {
         fireBullet.call(this);
     }
 
-    // Networking: Send position to server
+    // --- NETWORKING ---
     if (player.oldPosition && (player.x !== player.oldPosition.x || player.y !== player.oldPosition.y)) {
         this.socket.emit('playerMovement', { x: player.x, y: player.y });
     }
     player.oldPosition = { x: player.x, y: player.y };
 
-    // Enemy AI: Simple agro and jumping
+    // --- ENEMY AI ---
     enemy.getChildren().forEach(badGuy => {
         if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
             badGuy.setVelocityY(-400);
@@ -463,8 +581,7 @@ function update() {
         if (distance < 450) {
             badGuy.setVelocityX(-100);
             badGuy.setTint(0xff0000);
-        }
-        else if (distance > 400) {
+        } else if (distance > 400) {
             badGuy.setVelocityX(100);
             badGuy.setTint(0xff0000);
         }
@@ -472,20 +589,13 @@ function update() {
 
     cleanupObjects.call(this);
 
-    // Refresh HUD (DOM)
+    // --- UI REFRESH (DOM) ---
     score = Math.floor(player.x / 100);
-
-    // Update DOM elements
     document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
     document.getElementById('ammo-val').innerText = bullets;
+    document.getElementById('hp-bar').style.width = Math.max(0, health) + '%';
+    document.getElementById('fuel-bar').style.width = Math.max(0, (flytime / 1000) * 100) + '%';
 
-    const hpPercent = Math.max(0, health);
-    document.getElementById('hp-bar').style.width = hpPercent + '%';
-
-    const fuelPercent = Math.max(0, (flytime / 1000) * 100);
-    document.getElementById('fuel-bar').style.width = fuelPercent + '%';
-
-    // Combo Timer Decay
     if (comboTimer > 0) {
         comboTimer--;
     } else {
@@ -493,17 +603,13 @@ function update() {
         document.getElementById('combo-container').style.display = 'none';
     }
 
-    // Update Difficulty UI
     document.getElementById('difficulty-display').innerText = 'DANGER LEVEL: ' + difficultyLevel;
 
-    // Verse: inside update()
+    // --- GHOST MOVEMENT ---
     ghosts.getChildren().forEach(ghost => {
-        // Math.sin creates a smooth up-and-down wave
         ghost.y = ghost.startY + Math.sin(this.time.now / 200 * ghost.wobbleSpeed) * 50;
     });
-
 }
-
 // --- HELPERS ---
 
 /**
@@ -570,14 +676,36 @@ function fireBullet() {
  * Handles hazard collision and alerts the server.
  */
 function hitspike(player, spike) {
-    spike.destroy();
-    // health -= 10; // REMOVED: Server will emit 'playerWasHit' to sync this
-    player.setTint(0xff0000);
-    this.cameras.main.shake(200, 0.05);
-    this.time.delayedCall(200, () => player.clearTint());
-    this.socket.emit('playerHit', { playerId: this.socket.id, damage: 10 });
-}
+    // 1. If we are already in the "mercy period," ignore the hit
+    if (isInvincible) return;
 
+    // 2. Start invincibility
+    isInvincible = true;
+    
+    // 3. Shake and Tint
+    this.cameras.main.shake(200, 0.02);
+    player.setTint(0xff0000);
+
+    // 4. Send damage to server (Lowered to 10 for better balance)
+    this.socket.emit('playerHit', { playerId: this.socket.id, damage: 5 });
+
+    // 5. Create a "flicker" effect to show you are safe
+    this.tweens.add({
+        targets: player,
+        alpha: 0.3,
+        duration: 100,
+        yoyo: true,
+        repeat: 5, // Lasts about 1 second total
+        onComplete: () => {
+            isInvincible = false;
+            player.setAlpha(1);
+            player.clearTint();
+        }
+    });
+
+    // Destroy the object so you don't hit it again
+    if (spike && spike.active) spike.destroy();
+}
 /**
  * Spawns a brick with potential items/enemies on top.
  */
@@ -624,9 +752,9 @@ function addOtherPlayer(playerInfo) {
  * Item collection logic.
  */
 function collectItem(player, item) {
-    if (item.type === 'jetpack') flytime = Math.min(flytime + 250, 1000);
+    if (item.type === 'jetpack') flytime = Math.min(flytime + 250, 1500);
     else if (item.type === 'gun') bullets = Math.min(bullets + 10, 30);
-    else if (item.type === 'health') health = Math.min(health + 25, 100);
+    else if (item.type === 'health') health = Math.min(health + 25, 150);
     item.destroy();
 }
 

@@ -26,11 +26,11 @@ app.get('/game', (req, res) => {
 // --- Leaderboard (In-Memory) ---
 // Mock data to start with
 let leaderboard = [
-    { name: 'SpeedDemon', score: 1500, date: '2023-10-27' },
-    { name: 'BoxMaster', score: 1200, date: '2023-10-26' },
-    { name: 'GlitchHunter', score: 950, date: '2023-10-25' },
-    { name: 'PixelKing', score: 800, date: '2023-10-24' },
-    { name: 'VoidWalker', score: 600, date: '2023-10-23' }
+    { name: 'Speed', score: 1000, date: '2023-10-27' },
+    { name: 'BoxMaster', score: 900, date: '2023-10-26' },
+    { name: 'Hunter', score: 950, date: '2023-10-25' },
+    { name: 'Pixel', score: 800, date: '2023-10-24' },
+    { name: 'Void', score: 600, date: '2023-10-23' }
 ];
 
 app.get('/api/leaderboard', (req, res) => {
@@ -101,7 +101,7 @@ io.on('connection', (socket) => {
   socket.on('playerHit', (hitData) => {
     const targetId = hitData.playerId;
     if (players[targetId]) {
-      players[targetId].health -= 10;
+      players[targetId].health -= 5;
       
       if (players[targetId].health <= 0) {
         console.log(`Elimination: ${targetId}`);
