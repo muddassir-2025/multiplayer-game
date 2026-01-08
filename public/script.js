@@ -7,8 +7,8 @@ const config = {
     scale: {
         mode: Phaser.Scale.FIT, // Stretches to fit
         autoCenter: Phaser.Scale.CENTER_BOTH, // Centers game on screen
-        width: 1000,
-        height: 600
+        width: 1280,
+        height: 720
     },
     physics: {
         default: 'arcade',
@@ -104,11 +104,11 @@ function create() {
     });
 
     // 2. BACKGROUND & WORLD (Parallax setup)
-    this.bg = this.add.tileSprite(400, 300, 800, 600, 'bg').setScrollFactor(0);
+    this.bg = this.add.tileSprite(400, 300, 1280, 720, 'bg').setScrollFactor(0);
     this.bg.setTint(0xbbbbbb); //light grey that dims it slightly
 
     // Ground
-    ground = this.add.tileSprite(400, 580, 1000, 32, 'ground');
+    ground = this.add.tileSprite(640, 580, 1280, 32, 'ground');
     this.physics.add.existing(ground, true);
 
     // 3. PLAYER SETUP
@@ -350,8 +350,8 @@ this.mobileButtons = [shootBtn, dashBtn, blastBtn];
 if (!this.sys.game.device.os.desktop) {
 
     // 1. JOYSTICK SETUP
-    const joystickBase = this.add.circle(100, 500, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
-    const joystickThumb = this.add.circle(100, 500, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
+    const joystickBase = this.add.circle(150, 570, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
+    const joystickThumb = this.add.circle(150, 570, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
 
     this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
 
@@ -380,21 +380,21 @@ if (!this.sys.game.device.os.desktop) {
         this.joystickData.dragging = false;
         this.joystickData.forceX = 0;
         this.joystickData.forceY = 0;
-        joystickBase.setPosition(100, 500);
-        joystickThumb.setPosition(100, 500);
+        joystickBase.setPosition(150, 570);
+        joystickThumb.setPosition(150, 570);
     });
 
     // 2. ACTION BUTTONS
-    const shootBtn = this.add.circle(700, 500, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(700, 500, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    const shootBtn = this.add.circle(1160, 600, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(1160, 600, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
 
-    const dashBtn = this.add.circle(700, 400, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(700, 400, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    const dashBtn = this.add.circle(1160, 460, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    this.add.text(1160, 460, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     dashBtn.on('pointerdown', () => { this.isMobileDashing = true; });
 
     const blastBtn = this.add.circle(600, 530, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(600, 530, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    this.add.text(1020, 600, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; });
 
     this.mobileButtons = [shootBtn, dashBtn, blastBtn];
