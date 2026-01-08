@@ -517,20 +517,28 @@ if (!player.body.touching.down && !player.body.blocked.down) {
     }
     player.oldPosition = { x: player.x, y: player.y };
 
-    // --- ENEMY AI ---
-    enemy.getChildren().forEach(badGuy => {
-        if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
-            badGuy.setVelocityY(-350);
+   // --- ENEMY AI ---
+enemy.getChildren().forEach(badGuy => {
+    if (badGuy.isJumper && badGuy.body.touching.down && Phaser.Math.Between(0, 100) > 98) {
+        badGuy.setVelocityY(-350);
+    }
+
+    let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
+
+    if (distance < 500) {
+        // ENEMY IS WITHIN RANGE: MOVE TOWARDS PLAYER
+        if (badGuy.x > player.x) {
+            badGuy.setVelocityX(-150); // Player is to the left, move left
+        } else {
+            badGuy.setVelocityX(150);  // Player is to the right, move right
         }
-        let distance = Phaser.Math.Distance.Between(player.x, player.y, badGuy.x, badGuy.y);
-        if (distance < 500) {
-            badGuy.setVelocityX(-100);
-            badGuy.setTint(0xff0000);
-        } else if (distance > 500) {
-            badGuy.setVelocityX(100);
-            badGuy.setTint(0xff0000);
-        }
-    });
+        badGuy.setTint(0xff0000); // Red for "Aggro"
+    } else {
+        // ENEMY IS FAR AWAY: SLOW DOWN OR PATROL
+        badGuy.setVelocityX(0); 
+        badGuy.clearTint();
+    }
+});
 
     cleanupObjects.call(this);
 
@@ -714,7 +722,7 @@ function spawnRandomSpike() {
     let groundTop = ground.y - (ground.displayHeight / 2);
     let spike = spikes.create(spawnX, groundTop, Phaser.Math.RND.pick(spikeTypes));
     // IMPORTANT: Set origin to the bottom (1) so it sits ON the groundTop
-    spike.setOrigin(0.5, 1);
+    spike.setOrigin(0.5, 0.8);
     // Physics setup
     spike.setImmovable(true);
     spike.body.allowGravity = false;
@@ -729,7 +737,7 @@ function spawnRandomSpike() {
 function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
-    let delay = Phaser.Math.Between(1000, 4000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(1000, 3000) - (difficultyLevel * 100);
     delay = Math.max(500, delay);
     this.time.delayedCall(delay, spawnRandomBrick, [], this);
 }
@@ -861,7 +869,7 @@ function spawnRandomGhost() {
 
     spawnghost.call(this);
 
-    let delay = Phaser.Math.Between(9000, 18000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(9000, 12000) - (difficultyLevel * 100);
     this.time.delayedCall(Math.max(5000, delay), spawnRandomGhost, [], this);
 }
 
