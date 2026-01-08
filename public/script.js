@@ -665,7 +665,7 @@ function hitspike(player, spike) {
 function spawnBrick() {
     let key = Phaser.Math.RND.pick(brickTypes);
     let spawnX = this.cameras.main.scrollX + 1500;
-    let spawnY = Phaser.Math.Between(150, 370);
+    let spawnY = Phaser.Math.Between(150, 355);
     let brick = bricks.create(spawnX, spawnY, key);
     brick.setImmovable(true).body.allowGravity = false;
 
@@ -737,7 +737,7 @@ function spawnRandomSpike() {
 function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
-    let delay = Phaser.Math.Between(1000, 3000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(1000, 2000) - (difficultyLevel * 100);
     delay = Math.max(500, delay);
     this.time.delayedCall(delay, spawnRandomBrick, [], this);
 }
@@ -803,7 +803,7 @@ function spawngear() {
     if (!geargroup) return;
 
     let spawnX = this.cameras.main.scrollX + 1500;
-    let spawnY = Phaser.Math.Between(70, 450);
+    let spawnY = Phaser.Math.Between(70, 500);
 
     // 2. FIXED: Use 'geargroup', and name the individual sprite 'newGear'
     let newGear = geargroup.create(spawnX, spawnY, 'gear');
@@ -846,7 +846,7 @@ function spawnghost() {
 
     let spawnX = this.cameras.main.scrollX + 1500;
     // Ghosts can spawn anywhere since they fly!
-    let spawnY = Phaser.Math.Between(50, 400);
+    let spawnY = Phaser.Math.Between(50, 380);
 
     let ghost = ghosts.create(spawnX, spawnY, 'ghost');
 
@@ -869,7 +869,7 @@ function spawnRandomGhost() {
 
     spawnghost.call(this);
 
-    let delay = Phaser.Math.Between(9000, 12000) - (difficultyLevel * 100);
-    this.time.delayedCall(Math.max(5000, delay), spawnRandomGhost, [], this);
+    let delay = Phaser.Math.Between(5000, 8000) - (difficultyLevel * 100);
+    this.time.delayedCall(Math.max(2000, delay), spawnRandomGhost, [], this);
 }
 
