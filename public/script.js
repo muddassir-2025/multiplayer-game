@@ -7,7 +7,7 @@ const config = {
     scale: {
         mode: Phaser.Scale.FIT, // Stretches to fit
         autoCenter: Phaser.Scale.CENTER_BOTH, // Centers game on screen
-        width: 800,
+        width: 1000,
         height: 600
     },
     physics: {
@@ -108,7 +108,7 @@ function create() {
     this.bg.setTint(0xbbbbbb); //light grey that dims it slightly
 
     // Ground
-    ground = this.add.tileSprite(400, 580, 800, 32, 'ground');
+    ground = this.add.tileSprite(400, 580, 1000, 32, 'ground');
     this.physics.add.existing(ground, true);
 
     // 3. PLAYER SETUP
