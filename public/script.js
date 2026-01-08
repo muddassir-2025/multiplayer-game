@@ -104,11 +104,11 @@ function create() {
     });
 
     // 2. BACKGROUND & WORLD (Parallax setup)
-    this.bg = this.add.tileSprite(400, 300, 1280, 720, 'bg').setScrollFactor(0);
+    this.bg = this.add.tileSprite(640, 360, 1280, 720, 'bg').setScrollFactor(0);
     this.bg.setTint(0xbbbbbb); //light grey that dims it slightly
 
     // Ground
-    ground = this.add.tileSprite(640, 580, 1280, 32, 'ground');
+    ground = this.add.tileSprite(640, 700, 1280, 32, 'ground');
     this.physics.add.existing(ground, true);
 
     // 3. PLAYER SETUP
@@ -268,68 +268,6 @@ this.physics.add.collider(bulletGroup, geargroup, (bullet, gear) => {
     spawnRandomgear.call(this);
 
 
-    // --- MOBILE CONTROLS (ENHANCED) ---
-
-    // 1. JOYSTICK SETUP (Left Side)
-    const joystickBase = this.add.circle(100, 500, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
-    const joystickThumb = this.add.circle(100, 500, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
-
-    this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
-
-    this.input.on('pointerdown', (pointer) => {
-        // Only activate joystick if touching the left side of screen
-        if (pointer.x < 400) {
-            this.joystickData.dragging = true;
-            joystickBase.setPosition(pointer.x, pointer.y);
-            joystickThumb.setPosition(pointer.x, pointer.y);
-        }
-    });
-
-    this.input.on('pointermove', (pointer) => {
-        if (this.joystickData.dragging) {
-            const dist = Phaser.Math.Distance.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
-            const angle = Phaser.Math.Angle.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
-            const maxDist = 60;
-
-            const clampedDist = Math.min(dist, maxDist);
-            joystickThumb.x = joystickBase.x + Math.cos(angle) * clampedDist;
-            joystickThumb.y = joystickBase.y + Math.sin(angle) * clampedDist;
-
-            // Export forces for the update loop (-1 to 1)
-            this.joystickData.forceX = (joystickThumb.x - joystickBase.x) / maxDist;
-            this.joystickData.forceY = (joystickThumb.y - joystickBase.y) / maxDist;
-        }
-    });
-
-    this.input.on('pointerup', () => {
-        this.joystickData.dragging = false;
-        this.joystickData.forceX = 0;
-        this.joystickData.forceY = 0;
-        // Reset positions to default corner
-        joystickBase.setPosition(100, 500);
-        joystickThumb.setPosition(100, 500);
-    });
-
-    // 2. ACTION BUTTONS (Right Side)
-    // Shoot Button
-    const shootBtn = this.add.circle(700, 500, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(700, 500, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-
-    shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
-
-    // Dash Button (Shift)
-    const dashBtn = this.add.circle(700, 400, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(700, 400, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-
-    dashBtn.on('pointerdown', () => { this.isMobileDashing = true; }); // Handled in update
-
-    // Blast Button (Zero)
-    const blastBtn = this.add.circle(600, 530, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(600, 530, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-
-    blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; }); // Handled in update
-
-    // Verse: inside create()
     ghosts = this.physics.add.group();
 
     // If ghosts hurt the player like spikes:
@@ -393,7 +331,7 @@ if (!this.sys.game.device.os.desktop) {
     this.add.text(1160, 460, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     dashBtn.on('pointerdown', () => { this.isMobileDashing = true; });
 
-    const blastBtn = this.add.circle(600, 530, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+    const blastBtn = this.add.circle(1020, 600, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
     this.add.text(1020, 600, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; });
 
@@ -428,7 +366,7 @@ function update() {
 
     // --- BACKGROUND SCROLLING ---
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.3;
-    ground.x = this.cameras.main.scrollX + 400;
+    ground.x = this.cameras.main.scrollX + 640;
     ground.body.x = this.cameras.main.scrollX;
     ground.tilePositionX = this.cameras.main.scrollX;
 
