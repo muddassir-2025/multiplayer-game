@@ -276,88 +276,95 @@ this.physics.add.collider(bulletGroup, geargroup, (bullet, gear) => {
     // Start the spawning loop
     spawnRandomGhost.call(this);
 
-   // 1. First, make sure your buttons are assigned to variables (if not already)
-this.mobileButtons = [shootBtn, dashBtn, blastBtn];
+ 
 
 // 2. Add the Global Pointer Listener
 
 // --- IMPROVED MULTI-TOUCH MOBILE CONTROLS ---
 // --- MOBILE CONTROLS (ENHANCED) ---
 
-// Only create these if NOT on desktop
-if (!this.sys.game.device.os.desktop) {
+// --- MOBILE CONTROLS (ENHANCED) ---
 
-    // 1. JOYSTICK SETUP
-    const joystickBase = this.add.circle(150, 570, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
-    const joystickThumb = this.add.circle(150, 570, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
+    // 1. Declare variables at the top of this section
+    let shootBtn, dashBtn, blastBtn;
 
-    this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
+    // 2. Only create these if NOT on desktop
+    if (!this.sys.game.device.os.desktop) {
 
-    this.input.on('pointerdown', (pointer) => {
-        if (pointer.x < 400) {
-            this.joystickData.dragging = true;
-            joystickBase.setPosition(pointer.x, pointer.y);
-            joystickThumb.setPosition(pointer.x, pointer.y);
-        }
-    });
+        // JOYSTICK SETUP
+        const joystickBase = this.add.circle(150, 570, 60, 0xffffff, 0.2).setScrollFactor(0).setDepth(100);
+        const joystickThumb = this.add.circle(150, 570, 30, 0xffffff, 0.4).setScrollFactor(0).setDepth(101);
 
-    this.input.on('pointermove', (pointer) => {
-        if (this.joystickData.dragging) {
-            const dist = Phaser.Math.Distance.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
-            const angle = Phaser.Math.Angle.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
-            const maxDist = 60;
-            const clampedDist = Math.min(dist, maxDist);
-            joystickThumb.x = joystickBase.x + Math.cos(angle) * clampedDist;
-            joystickThumb.y = joystickBase.y + Math.sin(angle) * clampedDist;
-            this.joystickData.forceX = (joystickThumb.x - joystickBase.x) / maxDist;
-            this.joystickData.forceY = (joystickThumb.y - joystickBase.y) / maxDist;
-        }
-    });
+        this.joystickData = { dragging: false, forceX: 0, forceY: 0 };
 
-    this.input.on('pointerup', () => {
-        this.joystickData.dragging = false;
-        this.joystickData.forceX = 0;
-        this.joystickData.forceY = 0;
-        joystickBase.setPosition(150, 570);
-        joystickThumb.setPosition(150, 570);
-    });
-
-    // 2. ACTION BUTTONS
-    const shootBtn = this.add.circle(1160, 600, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(1160, 600, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-    shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
-
-    const dashBtn = this.add.circle(1160, 460, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(1160, 460, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-    dashBtn.on('pointerdown', () => { this.isMobileDashing = true; });
-
-    const blastBtn = this.add.circle(1020, 600, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
-    this.add.text(1020, 600, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-    blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; });
-
-    this.mobileButtons = [shootBtn, dashBtn, blastBtn];
-
-    // Multi-touch for Jump
-    this.input.addPointer(2); 
-    this.input.on('pointerdown', (pointer) => {
-        const distToJoystick = Phaser.Math.Distance.Between(pointer.x, pointer.y, joystickBase.x, joystickBase.y);
-        const overButton = this.mobileButtons.some(btn => Phaser.Math.Distance.Between(pointer.x, pointer.y, btn.x, btn.y) < 60);
-
-        if (distToJoystick > 100 && !overButton) {
-            if (player.body.touching.down || player.body.blocked.down) {
-                player.setVelocityY(-550);
-                player.setAngularVelocity(300);
-            } else {
-                this.isMobileJumping = true; 
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.x < 400) {
+                this.joystickData.dragging = true;
+                joystickBase.setPosition(pointer.x, pointer.y);
+                joystickThumb.setPosition(pointer.x, pointer.y);
             }
-        }
-    });
+        });
 
-    this.input.on('pointerup', () => { this.isMobileJumping = false; });
+        this.input.on('pointermove', (pointer) => {
+            if (this.joystickData.dragging) {
+                const dist = Phaser.Math.Distance.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+                const angle = Phaser.Math.Angle.Between(joystickBase.x, joystickBase.y, pointer.x, pointer.y);
+                const maxDist = 60;
+                const clampedDist = Math.min(dist, maxDist);
+                joystickThumb.x = joystickBase.x + Math.cos(angle) * clampedDist;
+                joystickThumb.y = joystickBase.y + Math.sin(angle) * clampedDist;
+                this.joystickData.forceX = (joystickThumb.x - joystickBase.x) / maxDist;
+                this.joystickData.forceY = (joystickThumb.y - joystickBase.y) / maxDist;
+            }
+        });
+
+        this.input.on('pointerup', () => {
+            this.joystickData.dragging = false;
+            this.joystickData.forceX = 0;
+            this.joystickData.forceY = 0;
+            joystickBase.setPosition(150, 570);
+            joystickThumb.setPosition(150, 570);
+        });
+
+        // 3. ACTION BUTTONS (Assigning to our top-level variables)
+        shootBtn = this.add.circle(1160, 600, 40, 0xff0000, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+        this.add.text(1160, 600, '🔥', { fontSize: '32px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        shootBtn.on('pointerdown', () => { if (bullets > 0) fireBullet.call(this); });
+
+        dashBtn = this.add.circle(1160, 460, 30, 0x00f3ff, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+        this.add.text(1160, 460, '💨', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        dashBtn.on('pointerdown', () => { this.isMobileDashing = true; });
+
+        blastBtn = this.add.circle(1020, 600, 30, 0xffea00, 0.3).setScrollFactor(0).setInteractive().setDepth(100);
+        this.add.text(1020, 600, '💥', { fontSize: '24px' }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+        blastBtn.on('pointerdown', () => { this.isMobileBlasting = true; });
+
+        // 4. Update the group for the jump logic
+        this.mobileButtons = [shootBtn, dashBtn, blastBtn];
+
+        // Multi-touch for Jump
+        this.input.addPointer(2); 
+        this.input.on('pointerdown', (pointer) => {
+            const distToJoystick = Phaser.Math.Distance.Between(pointer.x, pointer.y, joystickBase.x, joystickBase.y);
+            // Safety check: ensure buttons exist before checking distance
+            const overButton = this.mobileButtons.some(btn => btn && Phaser.Math.Distance.Between(pointer.x, pointer.y, btn.x, btn.y) < 60);
+
+            if (distToJoystick > 100 && !overButton) {
+                if (player.body.touching.down || player.body.blocked.down) {
+                    player.setVelocityY(-550);
+                    player.setAngularVelocity(300);
+                } else {
+                    this.isMobileJumping = true; 
+                }
+            }
+        });
+
+        this.input.on('pointerup', () => { this.isMobileJumping = false; });
+    } else {
+        // Desktop safety: ensure the array exists so the game doesn't crash on click
+        this.mobileButtons = [];
+    }
 }
-
-}
-
 /**
  * UPDATE: Game loop running every frame.
  */
