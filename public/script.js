@@ -416,10 +416,10 @@ if (!player.body.touching.down && !player.body.blocked.down) {
 
     // --- DIFFICULTY SCALING ---
     difficultyTimer++;
-    if (difficultyTimer > 1000) {
+    if (difficultyTimer >800) {
         difficultyTimer = 0;
         difficultyLevel++;
-        baseSpeed += 15;
+        baseSpeed += 20;
         
         showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
     }
@@ -737,7 +737,7 @@ function spawnRandomSpike() {
     // Refresh the physics body to match the new origin/position
     spike.body.updateFromGameObject();
     // Difficulty scaling
-    let delay = Phaser.Math.Between(1500, 4000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(1500, 4000) - (difficultyLevel * 10);
     delay = Math.max(500, delay);
     this.time.delayedCall(delay, spawnRandomSpike, [], this);
 }
@@ -745,7 +745,7 @@ function spawnRandomSpike() {
 function spawnRandomBrick() {
     if (this.physics.world.isPaused) return;
     spawnBrick.call(this);
-    let delay = Phaser.Math.Between(1000, 2000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(1000, 2000) - (difficultyLevel * 10);
     delay = Math.max(500, delay);
     this.time.delayedCall(delay, spawnRandomBrick, [], this);
 }
@@ -842,7 +842,7 @@ function spawnRandomgear() {
     // 3. FIXED: Call the correct function name
     spawngear.call(this);
 
-    let delay = Phaser.Math.Between(5000, 9000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(5000, 9000) - (difficultyLevel * 10);
     delay = Math.max(2000, delay); // Don't let it spawn too fast
 
     this.time.delayedCall(delay, spawnRandomgear, [], this);
@@ -877,7 +877,7 @@ function spawnRandomGhost() {
 
     spawnghost.call(this);
 
-    let delay = Phaser.Math.Between(5000, 8000) - (difficultyLevel * 100);
+    let delay = Phaser.Math.Between(5000, 8000) - (difficultyLevel * 10);
     this.time.delayedCall(Math.max(2000, delay), spawnRandomGhost, [], this);
 }
 
