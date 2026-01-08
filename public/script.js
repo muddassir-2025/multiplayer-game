@@ -49,7 +49,7 @@ let difficultyTimer = 0;
 let startTime = Date.now();
 
 let baseSpeed = 350;
-let manualBoost = 150;
+let manualBoost = 175;
 
 // Arrays containing asset keys for random generation
 let spikeTypes = ['spike1', 'spike2', 'spike3', 'spike4', 'spike6', 'spike7', 'spike8', 'spike9', 'enemy'];
@@ -416,10 +416,11 @@ if (!player.body.touching.down && !player.body.blocked.down) {
 
     // --- DIFFICULTY SCALING ---
     difficultyTimer++;
-    if (difficultyTimer > 5000) {
+    if (difficultyTimer > 1000) {
         difficultyTimer = 0;
         difficultyLevel++;
-        baseSpeed += 10;
+        baseSpeed += 15;
+        
         showToast(`DANGER LEVEL ${difficultyLevel}! SPEED UP!`);
     }
 
