@@ -49,7 +49,7 @@ let difficultyTimer = 0;
 let startTime = Date.now();
 
 let baseSpeed = 350;
-let manualBoost = 175;
+let manualBoost = 300;
 
 // Arrays containing asset keys for random generation
 let spikeTypes = ['spike1', 'spike2', 'spike3', 'spike4', 'spike6', 'spike7', 'spike8', 'spike9', 'enemy'];
@@ -438,7 +438,7 @@ if (!player.body.touching.down && !player.body.blocked.down) {
             this.isMobileDashing = false; // Reset mobile flag
             isDashing = true;
             dashTimer = 20; 
-            player.setVelocityX(baseSpeed + 1500);
+            player.setVelocityX(baseSpeed + 2500);
             flytime -= 100;
 
             this.cameras.main.shake(200, 0.02);
@@ -460,7 +460,7 @@ if (!player.body.touching.down && !player.body.blocked.down) {
 
     if (isblast) {
         blastTimer--;
-        player.setVelocityX(baseSpeed + 2500);
+        player.setVelocityX(baseSpeed + 2200);
         if (blastTimer <= 0) {
             isblast = false;
             this.time.timeScale = 1;
